@@ -1,0 +1,130 @@
+\documentclass[
+  lualatex,
+  ja=standard,
+  compress,
+  hyperref={colorlinks, urlcolor=magenta, linkcolor=blue!55!black},
+  dvipsnames,
+  svgnames,
+]{beamer}
+
+\usepackage{meowbeamer}
+
+\newfontfamily\tsukuard{TsukushiAMaruGothic.ttc}[
+  Path = ./,
+  Extension = .ttc,
+  UprightFeatures = {FontIndex=0},
+  BoldFeatures = {FontIndex=1},
+]
+\newcommand{\jaen}[1]{{\tsukuard #1}}
+
+\begin{luacode*}  
+  require("lua/latest-commit")
+  get_latest_commit = latest_commit.get_latest_commit
+  commit_hash_and_date = latest_commit.commit_hash_and_date
+\end{luacode*}
+
+\title{機能の紹介を兼ねたサンプルのスライド}
+\author[えびちゃん]{えびちゃん(\hspace{.05em}\textcolor{useryellow}{\lato{\textbf{rsk0315}}}\hspace{.05em})}
+\date{Aug.~20, 2022 @ねこねこ勉強ぱーてぃ\\*[.5em]
+  {\footnotesize 更新：}\directlua{commit_hash_and_date("\jobname.tex")}}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\section{紹介}
+\begin{frame}
+  \frametitle{お気に入り機能 \theslidetopic}
+
+  お気に入りの機能を載せてみる。
+
+  \begin{itemize}
+  \item 各種リンク
+    \begin{itemize}
+    \item ページ上部の章名・丸、下部のタイトル
+    \end{itemize}
+  \item ページ番号
+    \begin{itemize}
+    \item \texttt{\textbackslash appendix}以降は別で採番
+    \end{itemize}
+  \item トピックごとのページ番号
+    \begin{itemize}
+    \item スライド名の後ろのIやIIなどを自動採番
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{お気に入り機能 \theslidetopic}
+
+  \begin{itemize}
+  \item Lua\LaTeX{}なのでぱそこんに頼りやすい
+    \begin{itemize}
+    \item commit hashを取得してタイトルページに載せたり
+    \item DPの例示のスライドで実際にDPしたり
+    \item Luaが特別好きかというとそうではないが
+    \end{itemize}
+  \item 余白ができてしまった
+    \begin{itemize}
+    \item 思い浮かんだら追記する
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{フォント \theslidetopic}
+
+  \begin{itemize}
+  \item 和文フォント：筑紫\jaen{A}丸ゴシック
+  \item 英文フォント：Junicode
+    \begin{itemize}
+    \item sans-serifでいいのがあれば変えるかも
+    \item st ctのligatureは好きだけど和英混じりだとうるさい？
+    \end{itemize}
+  \item 数式フォント：AMS Euler + Computer Concrete
+    \begin{itemize}
+    \item 数学ガールに影響を受けている
+    \end{itemize}
+  \item 等幅フォント：TheSansMono Condensed
+    \begin{itemize}
+    \item O'Reilly本に影響を受けている
+    \item お値段がそれなりにする
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{フォント \theslidetopic}
+
+  フォントの試し書き。\texttt{minted}を使うとコメントに数式を書ける。
+  \begin{minted}[mathescape=true]{rust}
+    // in $O(n\log(n))$ time
+    for i in 1..=n {
+      for j in 1..=n / i {
+        // ...
+      }
+    }
+  \end{minted}
+
+  数式用のlorem ipsum的な概念があるとうれしい。
+  $$
+  f(a) = \frac{1}{2\pi i}\, \oint_{\gamma} \frac{f(z)}{z-a}\, \dd{z}.
+  $$
+\end{frame}
+
+\section{おわり}
+\begin{frame}
+  \frametitle{おわり}
+
+  気が向いたら何かを書く
+\end{frame}
+
+\begin{frame}
+  \vspace{3em}
+  \Thankyou
+\end{frame}
+
+\end{document}

@@ -1,0 +1,202 @@
+%%!lualatex
+
+\usepackage{luatexja-preset}
+
+\usepackage{mathpazo}
+\usepackage[euler-digits]{eulervm}
+\SetSymbolFont{operators}{normal}{T1}{ccr}{m}{n}
+\usepackage{euscript}
+\usepackage{bm}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\usepackage{minted}
+\usemintedstyle{bw}
+% https://tex.stackexchange.com/questions/408337/minted-environment-in-frame-causes-error#comment1018888_408337
+% \begin{frame}[fragile] が必要らしい
+
+\newcommand{\dd}[1]{\mathrm{d}#1}
+
+\newcommand{\floor}[1]{\lfloor#1\rfloor}
+\newcommand{\ceil}[1]{\lceil#1\rceil}
+\newcommand{\angled}[1]{\langle#1\rangle}
+\newcommand{\halfco}[2]{[#1, #2)}
+\newcommand{\halfoc}[2]{(#1, #2]}
+  
+\newcommand{\Floor}[1]{\left\lfloor#1\right\rfloor}
+\newcommand{\Ceil}[1]{\left\lceil#1\right\rceil}
+\newcommand{\Angled}[1]{\left\langle#1\right\rangle}
+\newcommand{\Halfco}[2]{\left[#1, #2\right)}
+\newcommand{\Halfoc}[2]{\left(#1, #2\right]}
+
+% ネタバレ防止用。位置調整がうまくいかなかったら運用でカバー。
+\newcommand{\spoiler}[1]{\rotatebox[origin=c]{180}{\parbox{\textwidth}{#1}}}
+
+\usepackage{luatexja-fontspec}
+
+% https://www.overleaf.com/learn/latex/Articles/An_Introduction_to_LuaTeX_(Part_2)%3A_Understanding_%5Cdirectlua#Using_the_tilde_character_.28.7E.29
+\begingroup
+\catcode`\~=11
+\directlua {
+  fonts.handlers.otf.addfeature {
+    name = "monoalt",
+    type = "substitution",
+    data = {
+      ["0"] = "zero.lf.slashed",
+      ["1"] = "one.lf",
+      ["2"] = "two.lf",
+      ["3"] = "three.lf",
+      ["4"] = "four.lf",
+      ["5"] = "five.lf",
+      ["6"] = "six.lf",
+      ["7"] = "seven.lf",
+      ["8"] = "eight.lf",
+      ["9"] = "nine.lf",
+      ["g"] = "g.alt1",
+      ["y"] = "y.alt1",
+      ["G"] = "G.alt1",
+      ["Q"] = "Q.alt",
+      ["*"] = "asterisk.alt1",
+      ["~"] = "asciitilde.alt1",
+    }
+  }
+}
+\endgroup
+
+% フォントを購入したら以下をアンコメントする
+\setmonofont[
+  Path = ./,
+  Extension = .otf,
+  UprightFont = TheSansMonoCd-W5Regular,
+  BoldFont = TheSansMonoCd-W7Bold,
+  ItalicFont = TheSansMonoCd-W5RegularItal,
+  BoldItalicFont = TheSansMonoCd-W7BoldItalic,
+]{TheSansMonoCd}[RawFeature=+monoalt]
+
+\usetheme{thomas}
+\usefonttheme{professionalfonts}
+
+% sans ではないなあ。よさげな sans のフォントがあったら変えるかも。
+\setsansfont[
+  Path = ./,
+  Extension = .ttf,
+  Ligatures = Rare,
+  BoldFont = Junicode-Bold,
+  ItalicFont = Junicode-Italic,
+  BoldItalicFont = Junicode-BoldItalic,
+]{Junicode}
+
+% フォントを手に入れたら以下をアンコメントする
+\setmainjfont{TsukushiAMaruGothic.ttc}[
+  Path = ./,
+  Extension = .ttc,
+  UprightFeatures = {FontIndex=0},
+  BoldFeatures = {FontIndex=1},
+]
+
+\usepackage{lato}
+\definecolor{useryellow}{HTML}{C0C000}
+
+% 等幅フォントで + の演算子がどうみたいなのを書きたいとき、
+% 記号のまわりにもアキを入れたくなるとき用。実際は別の方法がいいかも。
+% てすと\spaced{+}てすと\spaced{@}てすとみたいな。
+% 
+% https://ftp.kddilabs.jp/CTAN/macros/luatex/generic/luatexja/doc/luatexja-en.pdf
+% pp. 17, 35,
+\ltjsetparameter{alxspmode={"22,allow}}  % "
+\ltjsetparameter{alxspmode={"2B,allow}}  % +
+\ltjsetparameter{alxspmode={"40,allow}}  % @
+\ltjsetparameter{alxspmode={"5C,allow}}  % \
+\ltjsetparameter{alxspmode={"7B,allow}}  % {
+\ltjsetparameter{alxspmode={"7C,allow}}  % |
+\ltjsetparameter{alxspmode={"7D,allow}}  % }
+% , の後ろにスペースを入れるとだめみたい
+
+% ルビはたまにしか使わないので書き方を忘れがち。
+% `\ruby{具|体|例}{ぐ|たい|れい}`
+\usepackage{luatexja-ruby}
+
+% item や enum は実はお気に入りがよくわかってない。
+\usepackage{enumitem}
+\setlist[itemize]{label=\textbullet, parsep=.5em}
+\setlist[enumerate]{label={\small\arabic*.}, parsep=.5em}
+
+\usepackage{lua-ul}
+\usepackage[ruled, vlined, algosection, linesnumbered]{algorithm2e}
+% TODO: lIf や lFor で行コメントを書くときの例とかを載せておく
+\newenvironment{alg}{%
+  % https://tex.stackexchange.com/questions/174631/using-algorithm2e-package-in-beamer
+  \begin{algorithm}[H]
+    \DontPrintSemicolon
+    \SetKwBlock{Function}{function}{end function}
+    \SetKwComment{Comment}{$\rhd$~}{}
+    \SetKwComment{BlockComment}{}{}
+    \SetKw{Global}{global-var}
+    \SetKwInput{Assume}{assume}
+    \SetProgSty{\rmdefault}
+    \SetCommentSty{\rmdefault}
+    \SetKw{Break}{break}
+    \SetKw{Continue}{continue}
+    %
+    % \Function(\fn{Foo}{$(x)$})
+    % {
+    % }
+}{%
+  \end{algorithm}%
+}
+\newcommand{\fn}[1]{\text{\textsc{#1}}}
+
+\renewcommand{\url}[1]{\href{#1}{\scriptsize\texttt{#1}}}  % & は \& にする必要あり
+\newcommand{\urlbreak}[2]{\href{#1#2}{\scriptsize\texttt{#1\\\hspace{1em}#2}}}
+\newcommand{\webarchiveurl}[2]{\href{https://web.archive.org/web/#2/#1}{\scriptsize\texttt{#1}\textsuperscript{(web.archive.org:#2)}}}
+\newcommand{\webarchiveurlbreak}[3]{\href{https://web.archive.org/web/#3/#1#2}{\scriptsize\texttt{#1\\\hspace{1em}#2}\textsuperscript{(web.archive.org:#3)}}}
+
+% ファイルを分けるべき？ でもどうせ使うだろうしいいかとなっている。
+\usepackage{tikz}
+\usetikzlibrary{
+  automata,
+  arrows.meta,
+  calc,
+  datavisualization,
+  datavisualization.formats.functions,
+  decorations.pathmorphing,
+  decorations.pathreplacing,
+  decorations.shapes,
+  graphs,
+  graphdrawing,
+  patterns,
+}
+\usegdlibrary{trees}
+
+% すこし空いていた方が読みやすい気がする。
+% 縦方向を em で指定するのってどうなの？
+\parskip=1em
+
+% 同じトピックのスライドが続くとき、
+% 
+%% ```tex
+%% \setcounter{slidetopic}{0}
+%% \begin{frame}
+%%   \frametitle{てすと \theslidetopic} % I
+%% \end{frame}
+%% \begin{frame}
+%%   \frametitle{てすと \theslidetopic} % II
+%% \end{frame}
+%% \begin{frame}
+%%   \frametitle{てすと \theslidetopic} % III
+%% \end{frame}
+%% ```
+%% 
+%% みたいにする
+\newcounter{slidetopic}
+\renewcommand{\theslidetopic}{\stepcounter{slidetopic}\Roman{slidetopic}}
+\setcounter{slidetopic}{0}
+
+\usepackage{luacode}
+
+%% notes
+% https://tex.stackexchange.com/questions/203045/latex-error-option-clash-for-package-hyperref
+
+%% todo
+% - 絵文字を入れることがあったらそれ用のパッケージも入れなきゃかも。入れないことでカバー。

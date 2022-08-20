@@ -1,0 +1,242 @@
+%% Thomas 先生のテーマを真似しつつアレンジしたもの。
+%% https://www-alg.ist.hokudai.ac.jp/~thomas/ToC/SLIDES/toc_lec01.pdf とか。
+
+\DeclareOptionBeamer{compress}{\beamer@compresstrue}
+\ProcessOptionsBeamer
+
+\setbeamertemplate{navigation symbols}{}
+
+% Font settings
+%% \usefonttheme{serif}
+%% \usepackage{txfonts, mathpazo, helvet}
+\setbeamerfont*{author}{size=\large}
+\setbeamerfont*{institute}{size=\large}
+\setbeamerfont*{title}{family=\sf\Large}
+\setbeamerfont*{frametitle}{family=\sf\Large}
+
+% Color settings
+\definecolor{ThomasRed}{RGB}{128,32,64}
+\definecolor{ThomasBlue}{RGB}{52,52,178}
+\setbeamercolor{author in head/foot}{fg=white}
+\setbeamercolor{date}{fg=blue!55!black}
+\setbeamercolor{title in head/foot}{fg=blue!55!black}  % or white
+%% \setbeamercolor{title in head/foot}{fg=white}
+\setbeamercolor{section in head/foot}{fg=blue!55!black, bg=ThomasRed}  % or white
+%% \setbeamercolor{section in head/foot}{fg=white, bg=ThomasRed}
+%% \setbeamercolor{section in head/foot}{fg=ThomasBlue!65!white, bg=ThomasRed}
+\setbeamercolor{subsection in head/foot}{bg=ThomasBlue}
+\setbeamercolor{mini frame}{fg=white}
+\setbeamercolor{block title}{fg=white, bg=blue!55!black}
+\setbeamercolor{block body}{bg=blue!10!white}
+
+%% \setbeamertemplate{footline}[frame number]
+\addtobeamertemplate{navigation symbols}{}{%
+  \usebeamerfont{footline}%
+  \usebeamercolor[fg]{footline}%
+  \hspace{1em}%
+  %% https://tex.stackexchange.com/questions/137022/
+  %%   {\insertframenumber} / {\inserttotalframenumber}\hspace{0.8em}
+  \makeatletter%
+  \ifbeamer@inappendix{%
+    % 小文字だと p が低いせいで見栄えが悪いので smallcaps にしている。
+    \textsc{appendix} {\insertframenumberinappendix} / {\insertappendixframenumber}%
+  }\else{%
+    {\insertframenumber} / {\insertmainframenumber}%
+  }\fi%
+  \makeatother%
+  \hspace{0.8em}%
+}
+%% \setbeamertemplate{page number in head/foot}[appendixframenumber]
+
+\colorlet{pro}{ThomasBlue!65!white}
+\colorlet{con}{ThomasRed!65!white}
+
+\setbeamertemplate{section in head/foot shaded}{%
+  \color{ThomasRed!50}%
+  \usebeamertemplate{section in head/foot}%
+}
+
+% Themes
+\useinnertheme[shadow=false]{rounded}
+\makeatletter
+\setbeamertemplate{title page}[default][colsep=-4bp,rounded=true,shadow=true]
+\makeatother
+\useoutertheme[subsection=false, footline=authortitle]{miniframes}
+
+\usecolortheme{whale}
+% --------------------------------------------------------------
+
+% ---
+% https://tex.stackexchange.com/questions/587772/beamer-shadow-broken
+% https://github.com/josephwright/beamer/issues/647
+\makeatletter
+\def\endbeamerboxesrounded{%
+  \end{minipage}\egroup%
+  \bmb@temp=\dp\bmb@box%
+  \advance\bmb@temp by.5pt%
+  \setbox\bmb@box=\hbox{\raise\bmb@temp\hbox{\box\bmb@box}}%
+  \dp\bmb@box=0pt%
+  \bmb@boxwidth=\bmb@width%
+  \bmb@boxheight=\ht\bmb@box%
+  \advance\bmb@boxheight by4bp%
+  \advance\bmb@boxheight by\bmb@prevheight%
+  \ifbmb@shadow%
+    \xdef\beamer@storecolorhook{\beamer@colorhook}
+    \xdef\beamer@colorhook{}
+    \pgfdeclareradialshading{bmb@shadowball}{\pgfpointorigin}
+    {%
+      color(0bp)=(pgftransparent!50);
+      color(4bp)=(pgftransparent!100)
+    }%
+    \pgfdeclareradialshading{bmb@shadowballlarge}{\pgfpointorigin}
+    {%
+      color(0bp)=(pgftransparent!0);
+      color(8bp)=(pgftransparent!100)
+    }%
+    \pgfdeclarehorizontalshading{bmb@shadowhorz\the\bmb@boxheight}{\bmb@boxheight-6bp}
+    {%
+      color(0bp)=(pgftransparent!0);
+      color(8bp)=(pgftransparent!100)
+    }%
+    \pgfdeclareverticalshading{bmb@shadowvert\the\bmb@boxwidth}{\bmb@boxwidth-4bp}
+    {%
+      color(0bp)=(pgftransparent!100);
+      color(8bp)=(pgftransparent!0)
+    }%
+    \pgfdeclarefading{bmb@shadowmask\the\bmb@boxwidth\the\bmb@boxheight}
+    {%
+      \begin{pgfpicture}
+        \pgftext[at=\pgfpoint{4bp}{4bp}]{\pgfuseshading{bmb@shadowball}}
+        \pgftext[at=\pgfpoint{\bmb@boxwidth}{8bp}]{\pgfuseshading{bmb@shadowballlarge}}
+        \pgftext[at=\pgfpoint{\bmb@boxwidth+4bp}{\bmb@boxheight+2bp}]{\pgfuseshading{bmb@shadowball}}
+        \pgftext[left, at=\pgfpoint{4bp}{4bp}]{\pgfuseshading{bmb@shadowvert\the\bmb@boxwidth}}
+        \pgftext[base, at=\pgfpoint{\bmb@boxwidth+4bp}{8bp}]{\pgfuseshading{bmb@shadowhorz\the\bmb@boxheight}}
+        %
+        % clipping is needed because shadow is typeset on top of box
+        \begin{pgfscope}
+          \pgfsetcolor{black}
+          \pgfpathrectangle{\pgfpoint{4bp}{8bp}}{\pgfpoint{\bmb@boxwidth-0.2bp}{\bmb@boxheight-2bp}}
+          \pgfusepath{fill}
+        \end{pgfscope}
+      \end{pgfpicture}%
+      \hskip4bp%      
+    }%
+  \fi%
+  \bmb@temp=\bmb@width%
+  \bmb@dima=\bmb@temp\advance\bmb@dima by2.2bp%
+  \bmb@dimb=\bmb@temp\advance\bmb@dimb by4bp%
+  \hbox{%
+    \begin{pgfpicture}{0bp}{0bp}{0bp}{0bp}
+      \ifbmb@shadow%
+        \begin{pgfscope}
+          \pgfpathrectangle{\pgfpoint{0bp}{-7bp}}
+            {\pgfpoint{\bmb@boxwidth+8bp}{\bmb@boxheight+6bp}}
+          \pgfsetfading{bmb@shadowmask\the\bmb@boxwidth\the\bmb@boxheight}{%
+            \pgftransformshift{\pgfpoint{0.5\bmb@boxwidth+6bp}{0.5\bmb@boxheight-4bp}}}
+          \pgfusepath{fill}
+        \end{pgfscope}
+      \fi%
+      \unhbox\bmb@colorbox%
+      \pgfpathqmoveto{-4bp}{1bp}
+      \pgfpathqcurveto{-4bp}{-1.2bp}{-2.2bp}{-3bp}{0bp}{-3bp}
+      \pgfpathlineto{\pgfpoint{\the\bmb@temp}{-3bp}}
+      \pgfpathcurveto%
+      {\pgfpoint{\the\bmb@dima}{-3bp}}%
+      {\pgfpoint{\the\bmb@dimb}{-1.2bp}}%
+      {\pgfpoint{\the\bmb@dimb}{1bp}}%
+      {
+        \bmb@dima=\ht\bmb@box%
+        \pgfpathlineto{\pgfpoint{\bmb@dimb}{\bmb@dima}}
+        \pgfpathlineto{\pgfpoint{-4bp}{\bmb@dima}}
+        \pgfusepath{fill}
+      }
+    \end{pgfpicture}%
+    \box\bmb@box%
+  }%
+  \ifbmb@shadow%
+    \vskip4bp minus 2bp%
+  \else%
+    \vskip2bp%
+  \fi%
+  \egroup% of \vbox\bgroup
+  \ifbmb@shadow%
+    \xdef\beamer@colorhook{\beamer@storecolorhook}
+  \fi
+}
+\makeatother
+% ---
+
+% \useoutertheme{shadow} but not \useoutertheme{split}
+
+\setbeamercolor{frametitle}{parent=subsection in head/foot}
+\setbeamercolor{frametitle right}{parent=section in head/foot}
+
+\pgfdeclarehorizontalshading[frametitle.bg,frametitle right.bg]{beamer@frametitleshade}{\paperheight}{%
+  color(0pt)=(frametitle.bg);
+  color(\paperwidth)=(frametitle right.bg)}
+
+\AtBeginDocument{
+  \pgfdeclareverticalshading{beamer@topshade}{\paperwidth}{%
+    color(0pt)=(bg);
+    color(4pt)=(black!50!bg)}
+}
+
+\makeatletter
+\addtobeamertemplate{headline}
+{}
+{%
+  \vskip-0.2pt
+  \pgfuseshading{beamer@topshade}
+  \vskip-2pt
+}
+
+\defbeamertemplate*{frametitle}{shadow theme}
+{%
+  \nointerlineskip%
+  \vskip-2pt%
+  \hbox{\leavevmode
+    \advance\beamer@leftmargin by -12bp%
+    \advance\beamer@rightmargin by -12bp%
+    \beamer@tempdim=\textwidth%
+    \advance\beamer@tempdim by \beamer@leftmargin%
+    \advance\beamer@tempdim by \beamer@rightmargin%
+    \hskip-\Gm@lmargin\hbox{%
+      \setbox\beamer@tempbox=\hbox{\begin{minipage}[b]{\paperwidth}%
+          \vbox{}\vskip-.75ex%
+          \leftskip0.3cm%
+          \rightskip0.3cm plus1fil\leavevmode
+          \insertframetitle%
+          \ifx\insertframesubtitle\@empty%
+            \strut\par%
+          \else
+            \par{\usebeamerfont*{framesubtitle}{\usebeamercolor[fg]{framesubtitle}\insertframesubtitle}\strut\par}%
+          \fi%
+          \nointerlineskip
+          \vbox{}%
+          \end{minipage}}%
+      \beamer@tempdim=\ht\beamer@tempbox%
+      \advance\beamer@tempdim by 2pt%
+      \begin{pgfpicture}{0pt}{0pt}{\paperwidth}{\beamer@tempdim}
+        \usebeamercolor{frametitle right}
+        \pgfpathrectangle{\pgfpointorigin}{\pgfpoint{\paperwidth}{\beamer@tempdim}}
+        \pgfusepath{clip}
+        \pgftext[left,base]{\pgfuseshading{beamer@frametitleshade}}
+      \end{pgfpicture}
+      \hskip-\paperwidth%
+      \box\beamer@tempbox%
+    }%
+    \hskip-\Gm@rmargin%
+  }%
+  \nointerlineskip
+    \vskip-0.2pt
+    \hbox to\textwidth{\hskip-\Gm@lmargin\pgfuseshading{beamer@topshade}\hskip-\Gm@rmargin}
+    \vskip-2pt
+}
+\makeatother
+% --------------------------------------------------------------
+
+% Thank you!
+\newcommand{\Thankyou}{%
+  \centering{\LARGE\vspace{1ex}}%
+  {\Huge{\color{red}T}{\color{blue!55!black}ha}n{\color{blue!55!black}k} y{\color{red}o}u!}
+}
