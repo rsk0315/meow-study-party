@@ -1,0 +1,1867 @@
+\documentclass[
+  lualatex,
+  ja=standard,
+  compress,
+  hyperref={colorlinks, urlcolor=magenta, linkcolor=blue!55!black},
+  dvipsnames,
+  svgnames,
+]{beamer}
+
+\newcommand{\xgets}[1]{\xleftarrow{#1}}
+\newcommand{\wildcard}{*}
+\newcommand{\DP}{\mathrm{dp}}
+% \newcommand{\dd}[1]{\mathrm{d}#1}
+\newcommand{\Ei}[1]{\operatorname{Ei}(#1)}
+\newcommand{\li}[1]{\operatorname{li}(#1)}
+\newcommand{\Li}[1]{\operatorname{Li}(#1)}
+\newcommand{\IntC}{\text{\textcolor{gray}{const}}}
+\newcommand{\lpf}[1]{\mathrm{lpf}(#1)}
+\newcommand{\gpf}[1]{\mathrm{gpf}(#1)}
+
+\newcommand{\BIT}{BI\kern.75ptT}
+
+% https://tex.stackexchange.com/questions/400296/outline-text-characters
+\usepackage{pdfrender}
+\newcommand{\tpr}[1]{%
+  \textpdfrender{
+    TextRenderingMode=FillStrokeClip,
+    LineWidth=3pt,
+    FillColor=black,
+    StrokeColor=white,
+    MiterLimit=1
+  }{#1}%
+}
+
+\usepackage{luacode}
+
+\usepackage{meowbeamer}
+
+\begin{luacode*}  
+  require("latest-commit")
+
+  get_latest_commit = latest_commit.get_latest_commit
+  commit_hash_and_date = latest_commit.commit_hash_and_date
+\end{luacode*}
+
+\title{素数の数え上げと乗法的関数の和}
+\author[えびちゃん]{えびちゃん(\hspace{.05em}\textcolor{useryellow}{\lato{\textbf{rsk0315}}}\hspace{.05em})}
+\date{Jun.~29, 2022 @ねこねこ勉強ぱーてぃ\\*[.5em]
+  {\footnotesize 更新：}\directlua{commit_hash_and_date("\\jobname.tex")}}
+
+\begin{luacode*}  
+  require("prime-counting")
+
+  tikz_sieve = prime_counting.tikz_sieve
+  tikz_log_sieve = prime_counting.tikz_log_sieve
+  x_div_by = prime_counting.x_div_by
+  tikz_dp_trans = prime_counting.tikz_dp_trans
+  tikz_lucy = prime_counting.tikz_lucy
+  tikz_lucy_fix = prime_counting.tikz_lucy_fix
+\end{luacode*}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\section{導入}
+\begin{frame}
+  \frametitle{目標}
+
+  以下のことがわかるようになる：
+  \begin{itemize}
+  \item $\mathbb{N}\cap[1, n]$の素数の個数$\pi(n)$や$k$乗和\footnote{$k$は定数とする。}を求める
+    \begin{itemize}
+    \item in $O(n^{3/4}/\log(n))$ time
+    \item in $O(n^{2/3})$ time
+    \item in $O(n^{2/3} / \log(n)^{1/3})$ time
+    \end{itemize}
+  \item 乗法的関数$f$について$\sum_{i=1}^n f(i)$を求める
+    \begin{itemize}
+    \item in $O(n^{3/4}/\log(n))$ time? ← 解析は未解決
+    \item in $O(n^{2/3})$ time
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{記法に関して \theslidetopic}
+
+  任意の二項演算$\circ: S\times T\to S$と$(x, y)\in S\times T$に対して、
+  $$ x\xgets{\circ} y $$
+  で、$x\gets x\circ y$を表すものとする。\texttt{x += y}のような気持ち\footnote{\LaTeX{}で$x\:+\!\!=\,y$などと書くのは見栄えが悪くて好きではない。}。
+
+  特に、今回の内容においては、$x \gets x - (y - z)$の括弧を省いて$x \xgets{-} y-z$と書けるのがうれしい。
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{記法に関して \theslidetopic}
+
+  擬似コード中において、ループ順が重要なときは列の形で
+  $$ \text{\textbf{foreach }}i\gets(1, \dots, n)\text{\textbf{ do}} $$
+  と書き、そうでないときは集合の形で
+  $$ \text{\textbf{foreach }}i\in\{1, \dots, n\}\text{\textbf{ do}} $$
+  と書いている。
+
+  変数への代入には$v \gets a$を用いるが、定数の宣言のときには$v=a$を用いることもある。
+\end{frame}
+
+\section{素数の数え上げ}
+\subsection{復習}
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{まずは愚直から \theslidetopic}
+
+  \begin{minipage}{\textwidth}
+  \centering
+  \scalebox{.85}{
+    \begin{alg}
+      \caption{愚直に数え上げ}
+      \Function(\fn{primeCount-na\"ive}{$(n)$})
+      {
+        {$\pi \gets 0$}\;
+        \ForEach{$i \in \{2, \dots, n\}$}{
+          \If(\BlockComment*[h]{\hfill $\rhd$~試し割り法で判定}){$i$ is prime}{
+            {$\pi \xgets{+} 1$}
+          }
+        }
+        \Return $\pi$
+      }
+    \end{alg}
+  }
+  \end{minipage}
+
+  これは$\Theta(n^{\textcolor{con}{3/2}}/\log(n))$時間。
+  
+  $1/\log(n)$は、各試し割りに必要な回数の解析に基づく\footnote{\url{https://twitter.com/259\_Momone/status/1443890427514351622}など。}。
+\end{frame}
+
+\begin{frame}
+  \frametitle{まずは愚直から \theslidetopic}
+
+  \begin{minipage}{\textwidth}
+  \centering
+  \scalebox{.85}{
+    \begin{alg}
+      \caption{篩で数え上げ}
+      \Function(\fn{primeCount-sieve}{$(n)$})
+      {
+        {$\pi \gets 0$}\;
+        \ForEach{$i \in \{2, \dots, n\}$}{
+          \If(\BlockComment*[h]{\hfill $\rhd$~\textcolor{pro}{篩で判定}}){$i$ is prime}{
+            {$\pi \xgets{+} 1$}
+          }
+        }
+        \Return $\pi$
+      }
+    \end{alg}
+  }
+  \end{minipage}
+
+  これは$\Theta(n)$時間。
+
+  Eratosthenesの篩では$\Theta(n\log(\log(n)))$時間だが、用いる篩として線形篩\footnote{詳しくは触れない。今回の話には特に出てこない。}などを採用することで$\Theta(n))$時間になる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{まずは愚直から \theslidetopic}
+
+  陽に素数を調べる方針では、$O(n^{1-\varepsilon})$時間にはできない。
+  \begin{itemize}
+  \item $[1, n]$の整数をすべて調べると$\Omega(n)$時間かかる。
+  \item $[1, n]$の素数だけを列挙できたとしても$\Omega(\pi(n))$時間かかる\footnote{$\pi(n)$は$n$以下の素数の個数。$\pi(1)=0$, $\pi(7)=\pi(8)=4$, $\pi(12.3) = 5$など。}。
+    \begin{itemize}
+    \item $\pi(n)\sim n/\log(n)$なので、$\Omega(n/\log(n))$時間。
+    \end{itemize}
+  \end{itemize}
+
+  そこで、陽には調べない方針を考える必要がある。
+\end{frame}
+
+\subsection{考察}
+\begin{frame}
+  \frametitle{篩の復習}
+  Eratosthenesの篩の動作の様子を眺める。
+
+  \begin{figure}
+    \begin{tikzpicture}[scale={0.5}]
+      \only<1> {\directlua{tikz_sieve(100, 10, 1)}}
+      \only<2> {\directlua{tikz_sieve(100, 10, 2)}}
+      \only<3> {\directlua{tikz_sieve(100, 10, 3)}}
+      \only<4> {\directlua{tikz_sieve(100, 10, 4)}}
+      \only<5> {\directlua{tikz_sieve(100, 10, 5)}}
+      \only<6> {\directlua{tikz_sieve(100, 10, 6)}}
+      \only<7> {\directlua{tikz_sieve(100, 10, 7)}}
+      \only<8> {\directlua{tikz_sieve(100, 10, 10)}}
+      \only<9> {\directlua{tikz_sieve(100, 10, 10)}}
+    \end{tikzpicture}
+    \only<1> {\caption{篩の初期状態。}}
+    \only<2> {\caption{篩。$2$で篩っている様子。}}
+    \only<3> {\caption{篩。$3$で篩っている様子。}}
+    \only<4> {\caption{篩。素数でないとわかった$4$では篩わない。}}
+    \only<5> {\caption{篩。$5$で篩っている様子。}}
+    \only<6> {\caption{篩。素数でないとわかった$6$では篩わない。}}
+    \only<7> {\caption{篩。$7$で篩っている様子。}}
+    \only<8> {\caption{篩。素数でないとわかった$8$から$10$では篩わない。}}
+    \only<9> {\caption{篩。$\sqrt{100}$以下の素数で篩った様子。残りは素数。}}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{重要な観察}
+
+  「素数$i$によって篩われる整数は何個あるか？」
+
+  \begin{itemize}
+  \item これを$2\le i\le\sqrt{n}$の各素数について考える。
+  \item それらの和を$n-1$から引けば$n$以下の素数の個数がわかる。
+  \end{itemize}
+
+  → というわけで、これを高速に求めたい。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  どのような数が篩われるかを考える。
+  \begin{figure}
+    \begin{tikzpicture}[scale={0.5}]
+      \directlua{tikz_sieve(50, 10, 3)}
+    \end{tikzpicture}
+    \caption{$3$で篩っている様子。}
+  \end{figure}
+  $$
+  \begin{aligned}
+    \tikz[anchor=base, baseline, scale={0.25}]{
+      \node (x) at (0, 0) {$\phantom{x}$};
+      \begin{scope}[shift={($(x.center)$)}]
+        \draw[color=black, fill=ThomasRed!50!white] (1, 1) -- (-1, 1) -- (-1, -1) -- (1, -1) -- cycle;
+      \end{scope}
+    }
+    &= \{9, 15, 21, 27, 33, 39, 45\} \\
+    &= \{3\cdot j\mid j\in\{3, 5, 7, 9, 11, 13, 15\}\}.
+  \end{aligned}
+  $$
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  $i$で篩われる個数は、以下の値の差から求められる。
+  \begin{itemize}
+  \item $\floor{n/i}$以下のうち、$i$未満の素数では篩われなかった個数
+    \begin{itemize}
+    \item $(i, n) = (3, 50)$では$|\{2, 3, 5, 7, 9, 11, 13, 15\}| = 8$
+    \end{itemize}
+  \item $i$未満の整数の個数
+    \begin{itemize}
+    \item $i = 3$では$|\{2\}|=1$
+    \end{itemize}
+  \end{itemize}
+  \begin{figure}
+    \begin{tikzpicture}[scale={0.5}]
+      \directlua{tikz_sieve(50, 10, 3)}
+    \end{tikzpicture}
+    \caption{$\{3\cdot j\mid j\in\{3, 5, 7, 9, 11, 13, 15\}\}$の$7$個が$3$で篩われる様子。}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  以下の値は、$i$以前に篩われていることに注意。
+  \begin{itemize}
+  \item $i$未満の素数$j$に対し、$i\cdot j$。
+  \item $i$未満の素数で篩われた整数$j$に対し、$i\cdot j$。
+  \end{itemize}
+  \begin{figure}
+    \begin{tikzpicture}[scale={0.5}]
+      \directlua{tikz_sieve(60, 10, 5)}
+    \end{tikzpicture}
+    \caption{$\{5\cdot j\mid j\in\{5, 7, 11\}\}$が$5$で篩われる様子。}
+  \end{figure}
+  \vspace{-1em}
+  たとえば$15=5\cdot 3$や、$20 = 5\cdot(2\cdot 2)$は、すでに篩われている。
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  以下の値を求めればよいとわかった。
+  \begin{itemize}
+  \item $\floor{n/i}$以下のうち、$i$未満の素数では篩われなかった個数
+  \item $i$未満の整数の個数$\pi(i-1)$
+  \end{itemize}
+
+  そこで、以下のようにおく。
+  $$S_i(v):=v\,\text{以下のうち}\,i\,\text{以下の素数では篩われなかった個数}$$
+
+  $i$で篩うとき、得ているのは$S_{i-1}(v)$で、得たいのは$S_i(v)$。\\
+  特に、初め$S_1(v) = v - 1$。また、$S_{i-1}(i-1) = \pi(i-1)$。
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  $S_i(v)$を求めたい。
+
+  \begin{itemize}
+  \item $i$が素数でない場合
+    \begin{itemize}
+    \item $S_i(v) = S_{i-1}(v)$
+    \item 篩う処理をしないため。
+    \end{itemize}
+  \item $i^2>v$の場合
+    \begin{itemize}
+    \item $S_i(v) = S_{i-1}(v)$
+    \item 判明する最小の合成数$i^2$が範囲外のため。
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  $S_i(v)$を求めたい。$i^2\le v$なる素数$i$について考える。
+
+  $i$で篩われる個数は
+  \begin{itemize}
+  \item $\floor{v/i}$以下のうち、$i$未満の素数では篩われなかった個数
+  \item $i$未満の整数の個数
+  \end{itemize}
+  の差だったので、
+  $$
+  S_i(v) = S_{i-1}(v) - (S_{i-1}(\floor{v/i}) - \pi(i-1))
+  $$
+  とわかる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{篩われる個数を求める \theslidetopic}
+
+  以下を求めたくなった。
+  $$ S_i(n) = S_{i-1}(n) - (S_{i-1}(\floor{n/i}) - \pi(i-1)). $$
+
+  右辺に$S_{i-1}(\floor{n/i})$があるため、$S_{\wildcard}(\floor{n/\wildcard})$も求める必要がある\footnote{$\wildcard$はwild card。}。
+
+  ここで、$\floor{\floor{n/i}/j} = \floor{n/ij}$に注意すると、$\floor{n/\wildcard}$の取りうる値は
+  $$
+  \underbrace{1, 2, \dots, \floor{\sqrt{n}}}_{i\,(1\le i\le\sqrt{n})},
+  \underbrace{\floor{n/\floor{\sqrt{n}}}, \dots, \floor{n/2}, n}_{\floor{n/i}\,(1\le i\le\sqrt{n})}
+  $$
+  の$O(\sqrt{n})$通りしかないことがわかる\footnote{$\floor{n/\floor{\sqrt{n}+1}}\le\floor{n/\sqrt{n}}=\floor{\sqrt{n}}$から従う。}\textsuperscript{, }\footnote{$\floor{\sqrt{n}} = \floor{n/\floor{\sqrt{n}}}$は成り立ったり成り立たなかったりするので注意。}。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\subsection{Lucy DP}
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic}
+
+  よって、長さ$O(\sqrt{n})$の配列\footnote{$i, \floor{n/i}$ ($1\le i\le\sqrt{n}$)で2本持つなり、配列の前後で分けるなりする。}を管理してDPすればよい。
+
+  更新順に気をつければ、DP配列を使い回して
+  $$
+  \DP[n/j] \xgets{-} \DP[\floor{n/(i\cdot j)}] - \pi(i-1)
+  $$
+  と更新できる。
+
+  $n/j\ge i^2$なる$(i, j)$についてのみ更新するように気をつける。\\
+
+  考案者\texttt{\small Lucy\_Hedgehog}の名前から、主にProject Euler界隈ではLucy DPと呼ばれている。
+\end{frame}
+
+\begin{frame}\label{frame:lucy-code}
+  \frametitle{Lucy DP \theslidetopic{} — 擬似コード}
+
+  \begin{minipage}{\textwidth}
+  \centering
+  \scalebox{.85}{
+    \begin{alg}
+      \caption{Lucy DP}
+      \Function(\fn{primeCount-Lucy}{$(n)$}){
+        {$R \gets (\floor{n/i} - 1)_{i=1}^{\floor{\sqrt{n}}}$}\;
+        {$L \gets (i - 1)_{i=1}^{\floor{n/\floor{\sqrt{n}}}}$}\;
+        \ForEach{$i \gets (2, 3, \dots, \floor{\sqrt{n}})$}{
+          \lIf(\BlockComment*[h]{$\rhd$~$i\text{ is prime}\iff L_i>L_{i-1}$\hfill}){$L_i \le L_{i-1}$}\Continue
+          {$\pi_{i-1} = L_{i-1}$}\Comment*{$\pi_{i-1}=\pi(i-1)$}
+          \ForEach{$j \gets (1, 2, \dots, \floor{\sqrt{n}})$}{
+            \lIf{$\floor{n/j} < i^2$}\Break
+            {$(L_{\floor{n/j}}\text{\textbf{ or }} R_j) \xgets{-} (L_{\floor{n/ij}}\text{\textbf{ or }}R_{ij})-\pi_{i-1}$}\;
+          }
+          \ForEach{$j \gets (\floor{n/\floor{\sqrt{n}}}-1, \dots, 2, 1)$}{
+            \lIf{$j < i^2$}\Break
+            {$L_j \xgets{-} L_{\floor{j/i}} - \pi_{i-1}$}\;
+          }
+          \Return $R_1$
+        }
+      }
+    \end{alg}
+  }
+  \end{minipage}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic}
+
+  擬似コード中の$A_i \text{\textbf{ or }} B_j$は
+  \begin{itemize}
+  \item $A_i$が定義されていれば$A_i$
+  \item そうでなければ$B_j$
+  \end{itemize}
+  を意味するものとする。
+
+  $S_{i-1}(i) > S_{i-1}(i-1)$のとき、$i$が素数となることに注意せよ\footnote{個数の差分を見れば、条件を満たすかの判定ができるということ。}。
+  ループ先頭において、$S_{i-1}(v) = L(v)$である。
+
+  また、10行目のループの都合で、$L$の長さを$\floor{n/\floor{\sqrt{n}}}$とした。
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 計算量解析}
+
+  9行目と12行目の実行回数を見積もる。
+
+  7行目より$j\le\floor{\sqrt{n}}\le\sqrt{n}$、8行目より$n/j\ge\floor{n/j}\ge i^2$で\footnote{$j$について不等式を解き、$j$の取る範囲が実行回数に相当する。}、\\
+  9行目の実行回数は高々$\min\,\{\sqrt{n}, n/i^2\}$。
+
+  10行目より$j<\floor{n/\floor{\sqrt{n}}} = \sqrt{n}+o(1)$、11行目より$j\ge i^2$で、
+  12行目の実行回数は高々$\max\,\{\sqrt{n}-i^2+o(1), 0\}$。
+
+  これらを、各素数$i$について足し合わせればよい。
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 計算量解析}
+
+  $$
+  \begin{aligned}
+    &\phantom{{}={}} \int_{x=2}^{\sqrt{n}} \min\,\{\sqrt{n}, n/x^2\}\, \dd{\pi(x)}
+    + \int_{x=2}^{\sqrt{n}} \max\,\{\sqrt{n}-x^2, 0\} \, \dd{\pi(x)} \\
+    &= \sqrt{n}\, \int_2^{\sqrt[4]{n}}\dd{\pi(x)}
+    + n\int_{\sqrt[4]{n}}^{\sqrt{n}} \frac{\dd{\pi(x)}}{x^2}
+    + \int_2^{\sqrt[4]{n}} (\sqrt{n}-x^2)\, \dd{\pi(x)} \\
+    &= 2\sqrt{n}\, \int_2^{\sqrt[4]{n}}\dd{\pi(x)}
+    + n\int_{\sqrt[4]{n}}^{\sqrt{n}} \frac{\dd{\pi(x)}}{x^2}
+    - \int_2^{\sqrt[4]{n}} x^2\, \dd{\pi(x)}.
+  \end{aligned}
+  $$
+
+  ここで
+  $$ \pi(x) \sim \frac{x}{\log(x)} $$
+  であり、
+  $$ \dd{\pi(x)} \sim \frac{\log(x)-1}{\log(x)^2}\,\dd{x}. $$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 計算量解析}
+
+  $\Ei{\log(x)} = \li{x} \sim x/\log(x)$より、
+  $$
+  \begin{aligned}
+    \int \frac{\dd{\pi(x)}}{x^2}
+    &\sim \int \frac{\log(x)-1}{x^2\log(x)^2}\,\dd{x} \\
+    &= \frac{1}{x\log(x)} + 2\Ei{-\log(x)} + \IntC \\
+    &= \frac{1}{x\log(x)} + 2\li{x^{-1}} + \IntC \\
+    &\sim -\frac{1}{x\log(x)}.
+    \end{aligned}
+  $$
+
+  ここで、$\Ei{x}$と$\li{x}$はそれぞれ指数積分と対数積分を表す\footnote{この辺は\href{https://wolframalpha.com}{Wolfram|Alpha}や\href{https://www.integral-calculator.com/}{Integral Calculator}を頼った。}。
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 計算量解析}
+
+  残りの項も同様に計算する。
+  $$
+  \begin{aligned}
+    \int x^2\,\dd{\pi(x)}
+    &\sim \int \frac{x^2(\log(x)-1)}{\log(x)^2}\,\dd{x} \\
+    &= \frac{x^3}{\log(x)} - 2\Ei{3\log(x)} + \IntC \\
+    &= \frac{x^3}{\log(x)} - 2\li{x^3} + \IntC \\
+    &\sim \frac{x^3}{3\log(x)}.
+  \end{aligned}
+  $$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 計算量解析}
+
+  以上より、
+  $$
+  \begin{aligned}
+    &\phantom{{}={}} 2\sqrt{n}\, \int_2^{\sqrt[4]{n}}\dd{\pi(x)}
+    + n\int_{\sqrt[4]{n}}^{\sqrt{n}} \frac{\dd{\pi(x)}}{x^2}
+    - \int_2^{\sqrt[4]{n}} x^2\, \dd{\pi(x)} \\
+    &\sim 2\sqrt{n}\left[\frac{x}{\log(x)}\right]_2^{\sqrt[4]{n}}
+    - n\left[\frac{1}{x\log(x)}\right]_{\sqrt[4]{n}}^{\sqrt{n}}
+    - \left[\frac{x^3}{3\log(x)}\right]_2^{\sqrt[4]{n}} \\
+    &= 
+    \cdots \\
+    &= O{\left(\frac{n^{3/4}}{\log(n)}\right)}.
+  \end{aligned}
+  $$
+  実際には、$\dd{\pi(x)}$が絡む積分は、係数を気にしなければ、\\
+  $\dd{x}$で積分して$\log(n)$で割ってもうまくいくことが多そう\footnote{ところで\textbf{Riemann--Stieltjes積分}とかで調べるとよい？}。
+\end{frame}
+
+\begin{frame}
+  \frametitle{Lucy DP \theslidetopic{} — 総和への応用}
+
+  $S_i(v)$の代わりに以下のようにおく。
+  $$S_i^1(v):=v\,\text{以下のうち}\,i\,\text{以下の素数で篩われていない素数の総和}$$
+  初期化と更新は以下の通り。
+  $$
+  \begin{aligned}
+    S_1^1(v) &= \sum_{i=2}^v \textcolor{pro}{i} = \Floor{\frac{v\cdot(v+1)}{2}}-1, \\
+    S_i^1(v) &= S_{i-1}^1(v) - \textcolor{pro}{i}\cdot(S_{i-1}^1(\floor{v/i})-S_{i-1}^{\textcolor{pro}{1}}(i-1)).
+  \end{aligned}
+  $$
+
+  同様にして、$2$乗和$S_i^2(v)$なども求められる\footnote{経緯としては、元々は総和$S_i^1(v)$を求める問題の解法として提案された。}。
+
+\end{frame}
+
+\section{乗法的関数の和}
+\begin{frame}
+  \frametitle{乗法的関数について}
+
+  以下を満たす関数$f$を\textbf{乗法的関数}(\textit{multiplicative function})と呼ぶ。
+  \begin{itemize}
+  \item $f(1) = 1$, and
+  \item $\gcd(u, v) = 1 \implies f(uv) = f(u)\cdot f(v)$.
+  \end{itemize}
+
+  たとえば、Eulerの$\phi$関数は乗法的関数である。特に、
+  $$\phi{\left(\prod_{p:\text{ prime}} p^{e_p}\right)} = \prod_{p:\text{ prime}} (p-1)\cdot p^{e_p-1}$$
+  が成り立つ。
+
+  e.g.,~$\phi(120) = \phi(2^3\cdot 3\cdot 5) =
+  \underbrace{\phi(2^3)}_{4}\cdot\underbrace{\phi(3)}_{2}\cdot\underbrace{\phi(5)}_{4} = 32$。
+\end{frame}
+
+\begin{frame}
+  \frametitle{乗法的関数の和}
+
+  乗法的関数$f$に対して、$\displaystyle \sum_{i=1}^n f(i)$を高速に求めたくなる。
+
+  例として、$1$以上$n$以下の整数の組のうち、互いに素なものは
+  $$ \sum_{i=1}^n \phi(i) $$
+  と表せる（順序は区別しないとする）。
+
+  さて、$1<i\le n$の親を$i/\gpf{i}$とする$n$頂点の木を考えてみる。
+  ここで、$\gpf{i}$は$i$の最大の素因数(greatest prime factor)である。
+
+  図を次のページに載せる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{木}
+
+  \begin{figure}[h]
+    \centering
+    \begin{tikzpicture}
+      \graph[tree layout, sibling sep=0pt]{
+        1 -> {
+          2 -> {
+            4 -> {
+              8 -> 16,
+              12,
+              20
+            },
+            6 -> 18,
+            10,
+            14
+          },
+          3 -> {
+            9,
+            15
+          },
+          5,
+          7,
+          e/...,
+          19
+        }
+      };
+
+      % この辺もう少しまともに書けそう
+      \begin{scope}[every node/.style={font=\tiny}]
+        \path
+        (1) -- node {\tpr{2}} (2)
+        (1) -- node {\tpr{3}} (3)
+        (2) -- node {\tpr{2}} (4)
+        (1) -- node {\tpr{5}} (5)
+        (2) -- node {\tpr{3}} (6)
+        (1) -- node {\tpr{7}} (7)
+        (4) -- node {\tpr{2}} (8)
+        (3) -- node {\tpr{3}} (9)
+        (2) -- node {\tpr{5}} (10)
+        %% (1) -- node {\tpr{11}} (11)
+        (4) -- node {\tpr{3}} (12)
+        %% (1) -- node {\tpr{13}} (13)
+        (2) -- node {\tpr{7}} (14)
+        (3) -- node {\tpr{5}} (15)
+        (8) -- node {\tpr{2}} (16)
+        %% (1) -- node {\tpr{17}} (17)
+        (6) -- node {\tpr{3}} (18)
+        (1) -- node {\tpr{19}} (19)
+        (4) -- node {\tpr{5}} (20)
+        (1) -- node {\tpr{ee}} (e)  % それっぽく隠す用
+        %
+        (1) -- node {2} (2)
+        (1) -- node {3} (3)
+        (2) -- node {2} (4)
+        (1) -- node {5} (5)
+        (2) -- node {3} (6)
+        (1) -- node {7} (7)
+        (4) -- node {2} (8)
+        (3) -- node {3} (9)
+        (2) -- node {5} (10)
+        %% (1) -- node {11} (11)
+        (4) -- node {3} (12)
+        %% (1) -- node {13} (13)
+        (2) -- node {7} (14)
+        (3) -- node {5} (15)
+        (8) -- node {2} (16)
+        %% (1) -- node {17} (17)
+        (6) -- node {3} (18)
+        (1) -- node {19} (19)
+        (4) -- node {5} (20)
+        (1) -- node {...} (e)
+        ;
+      \end{scope}
+    \end{tikzpicture}
+    \caption{$n=20$の木}
+  \end{figure}
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{子での値の和 \theslidetopic}
+
+  $i$の子は、$j\in[\gpf{i}, n/i]$の各素数$j$について$i\cdot j$と表せる。
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      \graph[tree layout, sibling sep=0pt]{
+        2 -> {
+          4 -> /...,
+          6 -> /...,
+          10,
+          14
+        }
+      };
+
+      \begin{scope}[every node/.style={font=\tiny}]
+        \path
+        (2) -- node {\tpr{2}} (4)
+        (2) -- node {\tpr{3}} (6)
+        (2) -- node {\tpr{5}} (10)
+        (2) -- node {\tpr{7}} (14)
+        %
+        (2) -- node {2} (4)
+        (2) -- node {3} (6)
+        (2) -- node {5} (10)
+        (2) -- node {7} (14)
+        ;
+      \end{scope}
+      
+    \end{tikzpicture}
+    \caption{$n=20$の木における$i=2$の部分木}
+  \end{figure}
+  $j=\gpf{i}$とそれ以外の子に分けて、次のように表せる。
+  $$f(4)+f(6)+f(10)+f(14) = f(2^2) + f(2)\cdot(f(3)+f(5)+f(7)).$$
+\end{frame}
+
+\begin{frame}
+  \frametitle{子での値の和 \theslidetopic}
+
+  素因数が複数ある場合は少し注意が必要。
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      \graph[tree layout, sibling sep=0pt]{
+        60 -> {
+          300,
+          420,
+          660,
+          780
+        }
+      };
+
+      \begin{scope}[every node/.style={font=\tiny}]
+        \path
+        (60) -- node {\tpr{5}} (300)
+        (60) -- node {\tpr{7}} (420)
+        (60) -- node {\tpr{11}} (660)
+        (60) -- node {\tpr{13}} (780)
+        %
+        (60) -- node {5} (300)
+        (60) -- node {7} (420)
+        (60) -- node {11} (660)
+        (60) -- node {13} (780)
+        ;
+      \end{scope}
+      
+    \end{tikzpicture}
+    \caption{ある$n$の木における$i=60$の子}
+  \end{figure}
+  $j=\gpf{i}$とそれ以外の子に分けて、次のように表せる。
+  $$
+  \begin{aligned}
+    &\phantom{{}={}} f(300)+f(420)+f(660)+f(780) \\
+    &= f(12)\cdot f(5^2) + f(60)\cdot(f(7)+f(11)+f(13)).
+  \end{aligned}
+  $$
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{木上のDFS \theslidetopic}
+
+  葉でない頂点$v = (\prod_p p^{e_p})\cdot q^c$ ($\gpf{v}=q$)にいるとき、
+  \begin{itemize}
+  \item $f(\prod_p p^{e_p})\cdot f(q^{c+1})$
+  \item $f(v)\cdot\sum_r f(r)$
+    \begin{itemize}
+    \item $r$は$q<r\le n/v$を満たす素数
+    \end{itemize}
+  \end{itemize}
+  の和を求めればよい。葉でない頂点のみ探索するとする。
+
+  $f(\prod_p p^{e_p})$や$f(v)$、$q^c$などはDFSしながら管理すればよい\footnote{最大でない素因数の$f$と、最大素因数を分けて持てばよい。}。
+\end{frame}
+
+\begin{frame}
+  \frametitle{木上のDFS \theslidetopic}
+
+  $f(q^c)$と$\sum_r f(r)$を高速に求められる必要がある。
+
+  \begin{itemize}
+  \item $f(q^c)$の計算
+    \begin{itemize}
+    \item $(q, c, q^c)$などから$O(1)$時間で求まるのが望ましい。
+    \end{itemize}
+  \item $\sum_r f(r)$の計算・前処理
+    \begin{itemize}
+    \item $f(r)$が多項式ならLucy DPなどで求められる。
+    \item 高速に求められるなら、多項式でなくてもよい。
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{木上のDFS \theslidetopic{} — 計算量解析（未解決）}
+
+  葉以外の頂点$\{i\mid i\cdot\gpf{i}\le n\}$の個数を求めればよい。
+
+  $p\le \sqrt[4]{n}$なる各素数$p$について、
+  \begin{itemize}
+  \item $i\cdot p\le n$, and
+  \item $\gpf{i}=p$
+  \end{itemize}
+  なる$i$が$O(\sqrt{n})$個であれば、$O(n^{3/4}/\log(n))$個と示せる。
+
+  % 前半部分：https://twitter.com/sitositositoo/status/1535944240320376832
+
+  上記は未解決だが、$n\le 10^{12}$の範囲では成り立っているそう。
+
+  See: \url{https://zhuanlan.zhihu.com/p/33544708}.
+\end{frame}
+
+% わかんないけど、小さい文字だと過剰にスペース空く？
+\section{Lucy DP\hspace{.1em}の高速化}
+\begin{frame}
+  \frametitle{Lucy DPの高速化}
+
+  Lucy DPを$O(n^{2/3})$時間に高速化する。
+
+  元々の計算量は
+  $$
+  \int_2^{\sqrt{n}} \min\,\{\sqrt{n}, n/x^2\}\, \dd{\pi(x)}
+  + \int_2^{\sqrt{n}} \max\,\{\sqrt{n}-x^2, 0\} \, \dd{\pi(x)}
+  $$
+  に由来するが、区間$[2, \sqrt[6]{n}]$と$[\sqrt[3]{n}, \sqrt{n}]$での積分を考えてみる。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{定積分 \theslidetopic}
+
+  $$
+  \begin{aligned}
+    &\phantom{{}={}} \int_2^{\sqrt[6]{n}} \min\,\{\sqrt{n}, n/x^2\}\, \dd{\pi(x)}
+    + \int_2^{\sqrt[6]{n}} \max\,\{\sqrt{n}-x^2, 0\} \, \dd{\pi(x)} \\
+    &= \sqrt{n}\int_2^{\sqrt[6]{n}} \dd{\pi(x)}
+    + \int_2^{\sqrt[6]{n}} (\sqrt{n}-x^2)\, \dd{\pi(x)} \\
+    &= 2\sqrt{n}\int_2^{\sqrt[6]{n}} \dd{\pi(x)}
+    - \int_2^{\sqrt[6]{n}} x^2\, \dd{\pi(x)} \\
+    &\sim 2\sqrt{n}\,\left[\frac{x}{\log(x)}\right]_2^{\sqrt[6]{n}}
+    - \left[\frac{x^3}{3\log(x)}\right]_2^{\sqrt[6]{n}} \\
+    &= O{\left(\frac{n^{2/3}}{\log(n)}\right)}.
+  \end{aligned}
+  $$  
+\end{frame}
+
+\begin{frame}
+  \frametitle{定積分 \theslidetopic}
+
+  $$
+  \begin{aligned}
+    &\phantom{{}={}} \int_{\sqrt[3]{n}}^{\sqrt{n}} \min\,\{\sqrt{n}, n/x^2\}\, \dd{\pi(x)}
+    + \int_{\sqrt[3]{n}}^{\sqrt{n}} \max\,\{\sqrt{n}-x^2, 0\} \, \dd{\pi(x)} \\
+    &= n\int_{\sqrt[3]{n}}^{\sqrt{n}} \frac{\dd{\pi(x)}}{x^2} \\
+    &\sim n\left[-\frac{1}{x\log(x)}\right]_{\sqrt[3]{n}}^{\sqrt{n}} \\
+    &= O{\left(\frac{n^{2/3}}{\log(n)}\right)}.
+  \end{aligned}
+  $$  
+\end{frame}
+
+\begin{frame}
+  \frametitle{場合分け}
+
+  これにより、$i\in[2, \sqrt[6]{n}]\cup[\sqrt[3]{n}, \sqrt{n}]$なる素数$i$では、そのままLucy DPをしても$O(n^{2/3}/\log(n))$時間で抑えられるとわかる。
+
+  そこで、残りの$(\sqrt[6]{n}, \sqrt[3]{n})$の区間について考える。
+
+  \hyperlink{frame:lucy-code}{$\DP[n/j]$の更新}に関して、$n/j\ge n^{2/3}$すなわち$j\le \sqrt[3]{n}$のときは、
+  愚直に更新しても$O(n^{2/3}/\log(n))$回で済む\footnote{$i$が高々$n^{1/3}/\log(n)$個、$j$が高々$n^{1/3}$個なので。}。
+
+  あとは、$n/j<n^{2/3}$について考えればよい。
+\end{frame}
+
+\begin{frame}
+  \frametitle{重要な事実}
+
+  以下の事実に気をつける。
+  \begin{itemize}
+  \item $i$で篩われる合成数$v$について、$\lpf{v} = i$が成り立つ。
+    \begin{itemize}
+    \item $\lpf{v}$は$v$の最小の素因数(least prime factor)を表す。
+    \item ここでは$\lpf{1} = \infty$としておく\footnote{有限の整数で$1$を篩うことはできないため？}。
+    \end{itemize}
+  \item $\lpf{v}\ge i$なる$v\le n^{2/3}$は$\Theta(n^{2/3}/\log(n))$個。
+    \begin{itemize}
+    \item 解析に関しては後述の関数を参照。
+    \end{itemize}
+  \end{itemize}
+
+  \begin{itemize}
+  \item[→] $\lpf{v} = i$なる$v$を一つあたり$O(1)$時間で列挙できれば、
+    $i\in(n^{1/6}, n^{1/3})$で篩われる数を陽に列挙しても大丈夫。
+  \end{itemize}
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{$\lpf{v} = i$なる合成数$v$の列挙 \theslidetopic}
+
+  乗法的関数の和を求める際に作ったのと同様の木をDFSする。
+
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      \graph[tree layout, sibling sep=0pt]{
+        1 -> {
+          11 -> {
+            121,
+            143,
+            187
+          },
+          13 -> {
+            169,
+            221
+          },
+          17 -> 289
+        }
+      };
+
+      \begin{scope}[every node/.style={font=\tiny}]
+        \path
+        (1) -- node {\tpr{11}} (11)
+        (1) -- node {\tpr{13}} (13)
+        (1) -- node {\tpr{17}} (17)
+        (11) -- node {\tpr{11}} (121)
+        (11) -- node {\tpr{13}} (143)
+        (11) -- node {\tpr{17}} (187)
+        (13) -- node {\tpr{13}} (169)
+        (13) -- node {\tpr{17}} (221)
+        (17) -- node {\tpr{17}} (289)
+        %
+        (1) -- node {11} (11)
+        (1) -- node {13} (13)
+        (1) -- node {17} (17)
+        (11) -- node {11} (121)
+        (11) -- node {13} (143)
+        (11) -- node {17} (187)
+        (13) -- node {13} (169)
+        (13) -- node {17} (221)
+        (17) -- node {17} (289)
+        ;
+      \end{scope}
+      
+    \end{tikzpicture}
+    \caption{木の一部分}
+  \end{figure}
+
+  根1から最初に辿った値が最小素因数となることに注意する。\\
+  たとえば、$\lpf{187}=11$とわかる。
+
+  素数$i$の深さは1であり、$i$の真の部分木の各数が求める$v$である。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$\lpf{v} = i$なる合成数$v$の列挙 \theslidetopic}
+
+  $n^{2/3}$以下の合成数を列挙する際の空間計算量を確認する。
+
+  再帰で行う場合、深さは$\log(n)$段になるので問題ない。
+
+  stackを用いる場合について考える。
+  素数$i\in(n^{1/6}, n^{1/3})$の子は
+  $$ \frac{n^{2/3}/\log(n)}{n^{1/6}} $$
+  個程度あり、深さは高々$\log(n)$段なので、$O(\sqrt{n})$ spaceで済む\footnote{深くなるにつれて子は減るので、粗い見積もりではありそう。}。
+\end{frame}
+
+\begin{frame}
+  \frametitle{高速化の方針}
+
+  $v$が篩われていれば$b_v = 1$、そうでないとき$b_v = 0$となる配列を
+  \begin{itemize}
+  \item $v$を篩うとき、$b_v \xgets{+} 1$で更新する。
+  \item $v$以下の篩われた個数は、$\sum_{i=1}^v b_i$で取得する。
+  \end{itemize}
+  と管理すればよい。
+  → {\BIT}を用いて$O(\log(n))$時間で可能\footnote{実際には、$v=\floor{n/*}$のみ管理すればよいので、$O(\sqrt{n})$ spaceにできる。}。
+
+  $n/j\ge n^{2/3}$のLucy DPと併せて、個数を求めることができる\footnote{$n^{2/3}$未満の範囲についてはLucy DPをする代わりに、$n^{2/3}$以上の範囲のDPのための補助情報（篩われた個数）のみを管理するということ。}。\\
+
+  更新は$O(n^{2/3}/\log(n))$回なので、$O(n^{2/3})$時間となる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{場合分けのremark}
+
+  \begin{itemize}
+  \item $2\le i\le n^{1/6}$
+    \begin{itemize}
+    \item そのままLucy DPしても$O(n^{2/3}/\log(n))$時間。
+    \end{itemize}
+  \item $n^{1/6}<i<n^{1/3}$
+    \begin{itemize}
+    \item $n/j\ge n^{2/3}$
+      \begin{itemize}
+      \item Lucy DPで$O(n^{2/3}/\log(n))$回の更新。
+      \item 更新の際は{\BIT}から値を取得し、\textcolor{con}{$O(n^{2/3})$時間}。
+      \end{itemize}
+    \item $n/j<n^{2/3}$
+      \begin{itemize}
+      \item $\lpf{v}=i$なる合成数$v$を列挙して{\BIT}で管理する。
+      \item 操作ごとに$O(\log(n))$時間なので\textcolor{con}{$O(n^{2/3})$時間}。
+      \end{itemize}
+    \end{itemize}
+  \item $n^{1/3}\le i\le n^{1/2}$
+    \begin{itemize}
+    \item そのままLucy DPしても$O(n^{2/3}/\log(n))$時間。
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{実装}
+
+  やや長くなるため、擬似コードは\hyperlink{frame:lucy-2/3-code}{付録}に載せる。
+
+  ここでは、$i$と$\floor{n/i}$に対応する配列を分けて持つ方針ではなく、前半が$\floor{n/i}$、後半が$i$に対応する降順の列
+  $$ A = (\bot, n, \floor{n/2}, \dots, \floor{n/\floor{\sqrt{n}}}, \floor{n/\floor{\sqrt{n}}}-1, \dots, 2, 1) $$
+  に対し、$\DP[i]$を$S_{*}(A_i)$に対応させる方針を採用した\footnote{$\bot$はダミーの値。}。
+
+  $\floor{n/k}$に対応する要素の添字は
+  $$ \text{\textbf{if }}k\le \sqrt{n}\text{\textbf{ then }}k\text{\textbf{ else }}|A|-\floor{n/k} $$
+  で取得できる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{イメージ図}
+
+  {\BIT}などで管理するイメージ図などを載せてみる。
+
+  \begin{figure}
+    \begin{tikzpicture}
+      \only<1-3> {
+        \directlua{tikz_log_sieve(400, 2, 2)}
+        \only<1> { \directlua{tikz_lucy(400, 2, 1, 1)} }
+        \only<2> { \directlua{tikz_lucy(400, 2, 1, 2)} }
+        \only<3> { \directlua{tikz_lucy(400, 2, 1, 36)} }
+      }
+      \only<4-5> {
+        \directlua{tikz_log_sieve(400, 2, 3)}
+        \only<4> { \directlua{tikz_lucy(400, 2, 2, 1)} }
+        \only<5> { \directlua{tikz_lucy(400, 2, 3, 7)} }
+      }
+      \only<6-9> {
+        \directlua{tikz_log_sieve(400, 2, 7)}
+        \only<6> { \directlua{tikz_lucy(400, 2, 3, 1)} }
+        \only<7> { \directlua{tikz_lucy(400, 2, 3, 2)} }
+        \only<8> { \directlua{tikz_lucy_fix(400, 2, 8)} }
+        \only<9> { \directlua{tikz_lucy_fix(400, 2, 9)} }
+      }
+      \only<10-10> {
+        \directlua{tikz_log_sieve(400, 2, 11)}
+        \only<10> { \directlua{tikz_lucy(400, 2, 5, 1)} }
+      }
+      \only<11-11> {
+        \directlua{tikz_log_sieve(400, 2, 19)}
+        \only<11> { \directlua{tikz_lucy(400, 2, 8, 1)} }
+      }
+
+    \end{tikzpicture}
+    \caption{アルゴリズムの動きの概略\footnote{数直線が対数軸であることに注意。なお、ノーカット版は\hyperlink{frame:lucy-2/3-alg}{付録}に掲載。}}
+    
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+
+  \frametitle{解析に関する関数たち}
+
+  \begin{itemize}
+  \item $\Phi(x, y)$
+    \begin{itemize}
+    \item $x$以下の正整数のうち、$y$-roughである個数を表す。
+      \begin{itemize}
+      \item $y$-rough：最小素因数が$y$以上
+      \end{itemize}
+    \item $\Phi(x, x^{1/u})\sim x\cdot\omega(u)/\log(x^{1/u})$
+      \begin{itemize}
+      \item $\omega(u)$はBuchstab functionと呼ばれる。
+      \end{itemize}
+    \end{itemize}
+  \item $\Psi(x, y)$
+    \begin{itemize}
+    \item $x$以下の正整数のうち、$y$-smoothである個数を表す。
+      \begin{itemize}
+      \item $y$-smooth ($y$-friable)：最大素因数が$y$以下
+      \end{itemize}
+    \item $\Psi(x, x^{1/a})\sim x\cdot\rho(a)$
+      \begin{itemize}
+      \item $\rho(a)$はDickman--de Bruijn functionと呼ばれる。
+      \item $\rho(a)\approx a^{-a}$。
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{さらなる高速化}
+
+  区間の分け方を調整することで、log factorを減らせる。
+
+  \begin{itemize}
+  \item $2\le i\le n^{1/6}$
+  \item $n^{1/6}<i<n^{1/3}\textcolor{pro}{/\log(n)^{2/3}}$
+    \begin{itemize}
+    \item $n/j<n^{2/3}\textcolor{pro}{/\log(n)^{1/3}}$で分ける。
+    \end{itemize}
+  \item $n^{1/3}\textcolor{pro}{/\log(n)^{2/3}}\le i\le n^{1/2}$
+  \end{itemize}
+
+  各分岐で行うことは同じ。$O(n^{2/3}\textcolor{pro}{/\log(n)^{1/3}})$時間になる。
+\end{frame}
+
+\section{乗法的関数の和の高速化}
+\begin{frame}
+  \frametitle{高速化の概略}
+
+  乗法的関数の和の計算を高速化する。
+
+  以下の流れで求める。
+  \begin{enumerate}
+  \item 素数$p$に対して$f(p)$の和を求める。
+  \item ($\sqrt[3]{n}+1$)-rough number $i$に対して$f(i)$の和を求める。
+  \item ($\sqrt[6]{n}+1$)-rough number $i$に対して$f(i)$の和を求める。
+  \item 整数$i$に対して$f(i)$の和を求める。
+  \end{enumerate}
+
+  具体的な$p$や$i$の範囲などは次ページ以降で説明する。
+\end{frame}
+
+\begin{frame}
+  \frametitle{記法の導入}
+
+  \begin{itemize}
+  \item $p_k$：$k$番目の素数(e.g.~$p_1=2, p_2=3, p_3=5, \dots$)
+    \begin{itemize}
+    \item $(p_{\pi(i)})_{i=2}^{\infty} = (2, 3, 3, 5, 5, 7, 7, 7, 7, 11, 11, \dots)$に注意。
+    \end{itemize}
+  \item $S_{\mathbb{P}}^f(n) := \displaystyle\sum_{\substack{2\le p\le n\\p:\text{ prime}}} f(p)$：素数における$f$の和
+  \item $S_k^f(n) := \displaystyle\sum_{\substack{1\le i\le n\\\lpf{i}\ge p_k}} f(i)$：$p_k$-rough numberにおける$f$の和
+  \item $L(f, n) := (f(1), f(2), \dots, f(\floor{\sqrt{n}}))$
+  \item $R(f, n) := (f(\floor{n/\floor{\sqrt{n}}}), \dots, f(\floor{n/2}), f(n))$
+  \item $V(f, n) := (L(f, n), R(f, n))$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{素数での$f$の和}
+
+  まず、$V(S_{\mathbb{P}}^f, n)$を計算する。
+
+  Remark:
+  $$
+  S_{\mathbb{P}}^f(n) := \sum_{\substack{2\le p\le n\\p:\text{ prime}}} f(p).
+  $$
+
+  各$v=i$ ($1\le i\le\floor{\sqrt{n}}$)と$v=\floor{n/i}$ ($1\le i\le\floor{\sqrt{n}}$)に対して、\\$v$以下の素数$p$における$f(p)$の総和を求めるということ。
+
+  これは、素数$p$に対して$f(p)=g(p)$なる多項式$g$が存在すれば、先の高速化したLucy DPで$O(n^{2/3})$時間で計算できる\footnote{素数$p$以外の部分は無視して、素数の部分さえ多項式で表せればよい。}。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{$(\sqrt[3]{n}+1)$-rough numberでの$f$の和 \theslidetopic}
+
+  $(\sqrt[3]{n}+1)$-rough numberでの$f$の和$V(S_{\pi(\sqrt[3]{n})+1}^f, n)$を求める。
+
+  $\floor{n/i}$の値の範囲によって分けて考える。
+  なお、簡便さのため、$\sqrt[3]{n}$を超える最小の素数$p_{\pi(\sqrt[3]{n})+1}$を$q$とおく。
+
+  まず、$q>\sqrt[3]{n}$から、$n^{1/3}$以下の$q$-rough numberは$1$のみ。
+
+  $m = \floor{n/i} \le n^{1/3}$について、
+  $$ S_{\pi(\sqrt[3]{n})+1}^f(\floor{n/i}) = f(1) $$
+  より、各$m$について$O(1)$時間で計算できる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[3]{n}+1)$-rough numberでの$f$の和 \theslidetopic}
+
+  $q>\sqrt[3]{n}$から、$n^{2/3}$以下の$q$-rough numberの素因数は高々1つ\footnote{$q^2>n^{2/3}$なので。}。
+
+  $m = \floor{n/i} \in \halfoc{n^{1/3}}{n^{2/3}}$について、
+  $$
+  S_{\pi(\sqrt[3]{n})+1}^f(m)
+  = f(1) + (S_{\mathbb{P}}^f(m) - S_{\mathbb{P}}^f(q-1))
+  $$
+  より\footnote{累積和の差分を求めているだけ。}、各$m$について$O(1)$時間で計算できる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[3]{n}+1)$-rough numberでの$f$の和 \theslidetopic}
+
+  $q>\sqrt[3]{n}$から、$n$以下の$q$-rough numberの素因数は高々2つ。
+
+  $m = \floor{n/i} \in \halfoc{n^{2/3}}{n}$について、
+  $$
+  S_{\pi(\sqrt[3]{n})+1}^f(m) = 
+  \begin{aligned}[t]
+    &\phantom{{}+{}} f(1)
+    + (S_{\mathbb{P}}^f(m) - S_{\mathbb{P}}^f(q-1)) \\
+    &+ \sum_{j=\pi(\sqrt[3]{n})+1}^{\pi(\sqrt{m})} \left(f(p_j^2) + f(p_j)\cdot(S_{\mathbb{P}}^f(m/p_j)-S_{\mathbb{P}}^f(p_j)) \right).
+  \end{aligned}
+  $$
+  より\footnote{素因数に$p_j$を2つ持つ場合と、$p_j$と$p_j$以外を持つ場合で分ける。}、各$m$について$O(\pi(\sqrt{m}))$時間で計算できる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[3]{n}+1)$-rough numberでの$f$の和 \theslidetopic{} — 計算量解析}
+
+  各$m=\floor{n/i}$について$\Theta(\pi(m))$時間かかるので、  
+  $$
+  \begin{aligned}
+    \sum_{i=1}^{\floor{n^{1/3}}} \pi(\sqrt{n/i})
+    &\sim \sum_{i=1}^{\floor{n^{1/3}}} \sqrt{n/i}\, / \log(\sqrt{n/i}) \\
+    &\sim 2\sqrt{n}\,\int_{1}^{n^{1/3}} \frac{\dd{x}}{\sqrt{x}\,\log(n/x)}.
+  \end{aligned}
+  $$
+  ここで、
+  $$
+  \begin{aligned}
+    \int\frac{\dd{x}}{\sqrt{x}\,\log(n/x)}
+    &= -2\sqrt{n}\,\li{\sqrt{x/n}} + \IntC \\
+    &\sim \frac{4\sqrt{x}}{\log(n/x)}.
+  \end{aligned}
+  $$
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[3]{n}+1)$-rough numberでの$f$の和 \theslidetopic{} — 計算量解析}
+
+  よって、
+  $$
+  \begin{aligned}
+    \sum_{i=1}^{n^{1/3}} \pi(\sqrt{n/i})
+    &\sim 8\sqrt{n}\left[\frac{\sqrt{x}}{\log(n/x)}\right]_{1}^{n^{1/3}} \\
+    &= \Theta(n^{2/3}/\log(n))
+  \end{aligned}
+  $$
+  とわかる。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{$(\sqrt[6]{n}+1)$-rough numberでの$f$の和 \theslidetopic}
+
+  $(\sqrt[6]{n}+1)$-rough numberでの$f$の和$V(S_{\pi(\sqrt[6]{n})+1}^f, n)$を求める。
+
+  $S_{k+1}^f$から$S_k^f$を計算するための式
+  $$
+  S_k^f(m) = \sum_{e=0}^{\floor{\log_{p_k}(m)}} f(p_k^e)\cdot S_{k+1}^f(\floor{m/p_k^e})
+  $$
+  を念頭におく\footnote{$p_k$の次数ごとに求めて足せばよいということ。}。
+
+  各$k=\pi(\floor{\sqrt[3]{n}}),\dots, \pi(\floor{\sqrt[6]{n}})+1$について、この式の通り愚直に更新すると$\Theta(n^{5/6}/\log(n))$時間かかるため、工夫が必要になる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[6]{n}+1)$-rough numberでの$f$の和 \theslidetopic}
+
+  高速化の方針はLucy DPのときとほぼ同じ。
+
+  $m\ge n^{2/3}$については
+  $$
+  S_k^f(m) = \sum_{e=0}^{\floor{\log_{p_k}(m)}} f(p_k^e)\cdot S_{k+1}^f(\floor{m/p_k^e})
+  $$
+  で更新し、$m<n^{2/3}$については差分を{\BIT}で管理する。
+
+  $\sqrt{n}$以下の素数のみから$n^{2/3}$以下の合成数を網羅する部分で、$(\sqrt[6]{n}+1)$-roughであることが効いている。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[6]{n}+1)$-rough numberでの$f$の和 \theslidetopic{} — 計算量解析}
+
+  $m\ge n^{2/3}$における更新回数は
+  $$
+  \begin{aligned}
+    \sum_{i=\pi(\sqrt[6]{n})+1}^{\pi(\sqrt[3]{n})} \sum_{j=1}^{\floor{\sqrt[3]{n}}} \log_{p_i}(n/j)
+    &\le \sum_{i=\pi(\sqrt[6]{n})+1}^{\pi(\sqrt[3]{n})} \sum_{j=1}^{\floor{\sqrt[3]{n}}} \log_{\sqrt[6]{n}}(n) \\
+    &= \sum_{i=\pi(\sqrt[6]{n})+1}^{\pi(\sqrt[3]{n})} \sum_{j=1}^{\floor{\sqrt[3]{n}}} 6 \\
+    &\sim \frac{n^{1/3}}{\frac{1}{3}\log(n)}\cdot 6\cdot\floor{\sqrt[3]{n}} \\
+    &= O(n^{2/3}/\log(n))
+  \end{aligned}
+  $$
+  となる。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$(\sqrt[6]{n}+1)$-rough numberでの$f$の和 \theslidetopic{} — 計算量解析}
+
+  $m<n^{2/3}$における更新回数に関する解析はLucy DPと同じ。
+
+  $n^{2/3}$以下の$(\sqrt[6]{n}+1)$-rough numberの個数に相当し、これは$\Theta(n^{2/3}/\log(n))$個であることが知られている。\\
+
+  各操作は{\BIT}で行うため一回あたり$O(\log(n))$時間なので、$(\sqrt[6]{n}+1)$-rough numberでの和は$O(n^{2/3})$時間で求められる。
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{$2$-rough numberでの$f$の和 \theslidetopic}
+
+  $2$-rough numberでの和$V(S_1^f, n)$、すなわち全体の和を求める\footnote{$\lpf{1}=\infty$と定義したため、$1$も$2$-roughであることに注意せよ。}。
+
+  $S_{k+1}^f$から$S_k^f$を計算するための式
+  $$
+  S_k^f(m) = \sum_{e=0}^{\floor{\log_{p_k}(m)}} f(p_k^e)\cdot S_{k+1}^f(\floor{m/p_k^e})
+  $$
+  を用いて、$k=\pi(\floor{\sqrt[6]{n}}), \dots, 2, 1$と愚直に更新すればよい。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$2$-rough numberでの$f$の和 \theslidetopic{} — 計算量解析}
+
+  計算量は以下のようになる。
+
+  $$
+  \begin{aligned}
+    &\phantom{{} = {}}
+    \sum_{i=1}^{\pi(\sqrt[6]{n})} \sum_{j=1}^{\floor{\sqrt{n}}} (\log_{p_k}(n/i) + \log_{p_k}(i)) \\
+    &= \sum_{i=1}^{\pi(\sqrt[6]{n})} \sum_{j=1}^{\floor{\sqrt{n}}} \log_{p_k}(n) \\
+    &\le \sum_{i=1}^{\pi(\sqrt[6]{n})} \sum_{j=1}^{\floor{\sqrt{n}}} \log_2(n) \\
+    &\sim \frac{n^{1/6}}{\frac{1}{6}\log(n)} \, \sqrt{n}\cdot \log_2(n) = O(n^{2/3}).
+  \end{aligned}
+  $$
+\end{frame}
+
+\begin{frame}
+  \frametitle{乗法的関数の和の高速化}
+
+  乗法的関数$f$に対する$\displaystyle\sum_{i=1}^n f(i)$が$O(n^{2/3})$時間で得られた\footnote{実際には$\Theta$になるはず。}。
+
+  素因数が高々2個であるための条件などと絡むため、Lucy DPのときのような方針では、log factorを減らせないと思われる。
+
+  なお、未調査だが、$O(n^{2/3}/\log(n))$ time, $O(\sqrt{n})$ spaceの手法も知られているらしい。
+\end{frame}
+
+\begin{frame}
+  \frametitle{補足}
+
+  前述の各手法で$p_i$を使っているが、必要になるのは$p_i\le\sqrt{n}$の範囲のみ。
+  予め篩などで列挙しておけばよく、たとえば線形篩を用いれば$\angled{O(\sqrt{n}), O(1)}$ time, $O(\sqrt{n})$ spaceで済む。\\
+
+  単純な乗法的関数として$f(i) = i$や$f(i) = i^2$などが挙げられる。テストを行う際にはそれを用いるのが便利だと思われる。
+\end{frame}
+
+\section{実験}
+\begin{frame}
+  \frametitle{環境}
+
+  実験に用いた環境は以下の通り。
+
+  \begin{table}
+    \begin{tabular}{ll}
+      PC & MacBook Pro (13-inch, M1, 2020) \\
+      メモリ & 16 GB \\
+      言語 & Rust, rustc 1.63.0-nightly (\texttt{\small fdca237d5} 2022-06-24) \\
+      最適化 & \texttt{\small -C opt-level=3} \\
+      ツール & \href{https://crates.io/crates/criterion}{Criterion.rs} (0.3.5)
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{計測結果 \theslidetopic}
+
+  Lucy DPの亜種たちの実測の結果は以下の通り。
+
+  いずれもほぼ同じだが、$n=10^{10}$程度で$\Theta(n^{2/3}/\log(n)^{1/3})$が優勢になっていた。
+  $n=10^{13}$で1.6秒程度であった。
+
+  \begin{figure}
+    \only<1> { \includegraphics[width=.9\textwidth]{lucy-graph-y-log.pdf} }
+    \only<2> { \includegraphics[width=.9\textwidth]{lucy-graph-y-linear.pdf} }
+    \caption{Lucy DPの計測結果}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{計測結果 \theslidetopic}
+
+  乗法的関数の和を求めるアルゴリズムの実測の結果は以下の通り。
+
+  こちらも同じような感じ。定数倍が重めだが、$n=10^9$程度で$\Theta(n^{2/3})$の方が優勢になり始めた。
+  $n=10^{12}$で1.3秒程度。
+
+  \begin{figure}
+    \only<1> { \includegraphics[width=.9\textwidth]{multfn-graph-y-log.pdf} }
+    \only<2> { \includegraphics[width=.9\textwidth]{multfn-graph-y-linear.pdf} }
+    \caption{乗法的関数の和の計測結果}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{求めた値}
+
+  \begin{table}
+    \caption{素数の個数と$\phi(n)$の和の値}
+    \scalebox{.85}{
+    \begin{tabular}{rrr}
+      \hline
+      $\log_{10}(n)$ & $\pi(n)$ & $\sum_{i=1}^{n} \phi(i)$ \\\hline\hline
+      $1$ & $4$ & $32$ \\
+      $2$ & $25$ & $3044$ \\
+      $3$ & $168$ & $304192$ \\
+      $4$ & $1229$ & $30397486$ \\
+      $5$ & $9592$ & $3039650754$ \\
+      $6$ & $78498$ & $303963552392$ \\
+      $7$ & $664579$ & $30396356427242$ \\
+      $8$ & $5761455$ & $3039635516365908$ \\
+      $9$ & $50847534$ & $303963551173008414$ \\
+      $10$ & $455052511$ & $30396355092886216366$ \\
+      $11$ & $4118054813$ & $3039635509283386211140$ \\
+      $12$ & $37607912018$ & $303963550927059804025910$ \\
+      $13$ & $346065536839$ & $30396355092702898919527444$ \\
+      $14$ & $3204941750802$ & $3039635509270144893910357854$ \\
+      \hline
+    \end{tabular}
+    }
+  \end{table}
+\end{frame}
+
+\section{おわり}
+\setcounter{slidetopic}{0}
+\begin{frame}
+  \frametitle{参考文献 \theslidetopic}
+
+  \begin{itemize}
+  \item Sum of Multiplicative Function / min-25
+    \begin{itemize}
+    \item \webarchiveurlbreak{https://min-25.hatenablog.com/}{entry/2018/11/11/172216}{20211009144526}
+    \end{itemize}
+  \item min-25 sieve
+    \begin{itemize}
+    \item \url{https://zhuanlan.zhihu.com/p/60378354}
+    \item \url{https://oi-wiki.org/math/number-theory/min-25/}
+    \end{itemize}
+  \item 洲閣篩(Zhouge sieve)
+    \begin{itemize}
+    \item \webarchiveurlbreak{http://debug18.com/posts/calculate-}{the-sum-of-multiplicative-function}{20190114044154}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{参考文献 \theslidetopic}
+
+  \begin{itemize}
+  \item the black algorithm / baihacker
+    \begin{itemize}
+    \item \urlbreak{http://baihacker.github.io/main/2020/The\_prefix-sum\_}{of\_multiplicative\_function\_the\_black\_algorithm.html}
+    \end{itemize}
+  \item Nyaan's Library
+    \begin{itemize}
+    \item \urlbreak{https://nyaannyaan.github.io/library/multiplicative-function/}{sum-of-multiplicative-function.hpp}
+    \item \urlbreak{https://nyaannyaan.github.io/library/multiplicative-function/}{prime-counting.hpp}
+    \item \urlbreak{https://nyaannyaan.github.io/library/multiplicative-function/}{prime-counting-o2d3.hpp}
+    \item \urlbreak{https://nyaannyaan.github.io/library/multiplicative-function/}{prime-counting-faster.hpp}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{関連資料}
+
+  \begin{itemize}
+  \item 乗法的関数の和を$O(n^{2/3}/\log(n))$ time, $O(\sqrt{n})$ spaceらしい
+    \begin{itemize}
+    \item \webarchiveurlbreak{https://blog.csdn.net/}{whzzt/article/details/104105025}{20211009144526}
+    \end{itemize}
+  \item 別の手法で$\sum_i \phi(i)$などを$O(n^{2/3})$ time / maspy
+    \begin{itemize}
+    \item \href{https://maspypy.com/dirichlet-\%E7\%A9\%8D\%E3\%81\%A8\%E3\%80\%81\%E6\%95\%B0\%E8\%AB\%96\%E9\%96\%A2\%E6\%95\%B0\%E3\%81\%AE\%E7\%B4\%AF\%E7\%A9\%8D\%E5\%92\%8C}{\scriptsize\texttt{https://maspypy.com/dirichlet-積と、数論関数の累積和}}
+    \end{itemize}
+  \item $\pi(n)$: the Meissel, Lehmer, Lagarias, Miller, Odlyzko method
+    \begin{itemize}
+    \item $O(x^{2/3}/\log(x)^2)$ time, $O(x^{1/3}\log(x)^3\log(\log(x)))$ space
+    \item \urlbreak{https://www.ams.org/journals/mcom/1996-65-213/}{S0025-5718-96-00674-6/S0025-5718-96-00674-6.pdf}
+    \end{itemize}
+  \item 実用的に高速なライブラリ。$10^{31}$くらいまでできるらしい。
+    \begin{itemize}
+    \item \url{https://github.com/kimwalisch/primecount}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \vspace{3em}
+  \Thankyou
+\end{frame}
+
+\appendix
+
+\section{付録}
+
+\setcounter{slidetopic}{0}
+\begin{frame}\label{frame:lucy-2/3-code}
+  \frametitle{擬似コード \theslidetopic}
+
+  $\Theta(n^{2/3})$時間のLucy DPの擬似コード。
+
+  拡大して見ればよいので、めちゃくちゃに縮小してある。
+
+  \centering
+  \scalebox{.25}{
+    \begin{alg}
+      \caption{高速化したLucy DP}
+      \Function(\fn{primeCount-lucy\textsuperscript{2/3}}{$(n)$})
+      {
+        {$A = (n, \floor{n/2}, \dots, \floor{n/\floor{\sqrt{n}}}, \floor{n/\floor{\sqrt{n}}}-1, \dots, 2, 1)$}\;
+        {$S \gets (A_1-1, A_2-1, \dots, A_{|A|}-1)$}\;
+        {$\pi \gets 1$}\;
+        \While{$p_{\pi} \le \sqrt[6]{n}$}{
+          \ForEach{$i \gets (1, 2, \dots, |A|)$}{
+            \lIf{$A_i < p_{\pi}^2$}\Break
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le \sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A| - \floor{A_i/p_{\pi}})$}\;
+            {$S_i \xgets{-} S_j$}\;
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        {$b \gets (0)_{i=\floor{\sqrt[3]{n}}}^{|A|}$}\Comment*{$b$は{\BIT}で管理する。}
+        \While{$p_{\pi} \le \sqrt[3]{n}$}{
+          \ForEach{$i\gets (1, 2, \dots, \floor{\sqrt[3]{n}})$}{
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le\sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A|-\floor{A_i/p_{\pi}})$}\;
+            \If{$j > \sqrt[3]{n}$}{
+              {$S_i \xgets{-} \left(S_j - \displaystyle\sum_{k=j}^{|A|} b_k\right) - \pi$}\;
+            }
+            \Else{
+              {$S_i \xgets{-} S_j - \pi$}\;
+            }
+          }
+          \ForEach{$v\in\{v\mid\lpf{v} = p_{\pi}, v<n/\floor{\sqrt[3]{n}}\}\setminus\mathbb{P}$}{
+            {$j = (\text{\textbf{if }}v\le\sqrt{n}\text{\textbf{ then }}|A|-v\text{\textbf{ else }}\floor{n/v})$}\;
+            \lIf{$j>\sqrt[3]{n}$}{$b_{j} \xgets{+} 1$}
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        \ForEach(\BlockComment*[h]{\hfill$\rhd$~ループ範囲に関して\footnote{$n^{1/6}$以下の素数では篩っていることから、{\BIT}で管理されている合成数は$n^{1/3}$より大きい。そのため$j\gets(|A|-\floor{\sqrt[3]{n}}, \dots, \floor{\sqrt[3]{n}})$で十分そう。}}){$j\gets(|A|, \dots, \floor{\sqrt[3]{n}})$}{
+          {$S_j \xgets{-} \displaystyle\sum_{k=j}^{|A|} b_k$}\;
+        }
+        \While{$p_{\pi} \le \sqrt{n}$}{
+          \ForEach{$i \gets (1, 2, \dots, |A|)$}{
+            \lIf{$A_i < p_{\pi}^2$}\Break
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le \sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A| - \floor{A_i/p_{\pi}})$}\;
+            {$S_i \xgets{-} S_j$}\;
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        \Return $S_1$\Comment*{$\pi(n)$}
+      }
+    \end{alg}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{擬似コード \theslidetopic}
+
+  $\Theta(n^{2/3}/\log(n)^{1/3})$時間のLucy DPの擬似コード。
+
+  拡大して見ればよいので、めちゃくちゃに縮小してある。
+
+  \centering
+  \scalebox{.25}{
+    \begin{alg}
+      \caption{高速化したLucy DP}
+      \Function(\fn{primeCount-lucy\textsuperscript{2/3/log}}{$(n)$})
+      {
+        {$A = (n, \floor{n/2}, \dots, \floor{n/\floor{\sqrt{n}}}, \floor{n/\floor{\sqrt{n}}}-1, \dots, 2, 1)$}\;
+        {$S \gets (A_1-1, A_2-1, \dots, A_{|A|}-1)$}\;
+        {$\pi \gets 1$}\;
+        \While{$p_{\pi} \le \sqrt[6]{n}$}{
+          \ForEach{$i \gets (1, 2, \dots, |A|)$}{
+            \lIf{$A_i < p_{\pi}^2$}\Break
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le \sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A| - \floor{A_i/p_{\pi}})$}\;
+            {$S_i \xgets{-} S_j$}\;
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        {$b \gets (0)_{i=\floor{\sqrt[3]{n}\textcolor{pro}{\,\cdot\log(n)^{1/3}}}}^{|A|}$}\Comment*{$b$は{\BIT}で管理する。}
+        \If{$\floor{\sqrt[3]{n}\textcolor{pro}{\,\cdot\log(n)^{1/3}}}\le\sqrt{n}$}{
+          {$j_{\theta} = \floor{\sqrt[3]{n}\cdot\log(n)^{1/3}}$}\;
+        }\Else{
+          {$j_{\theta} = |A| - \floor{n/\floor{\sqrt[3]{n}\cdot\log(n)}}$}\;
+        }
+        \While{$p_{\pi} \le \sqrt[3]{n}\textcolor{pro}{\,/\log(n)^{2/3}}$}{
+          \ForEach{$i\gets (1, 2, \dots, \floor{\sqrt[3]{n}\textcolor{pro}{{}\cdot\log(n)^{1/3}}})$}{
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le\sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A|-\floor{A_i/p_{\pi}})$}\;
+            \If{$j > j_{\theta}$}{
+              {$S_i \xgets{-} \left(S_j - \displaystyle\sum_{k=j}^{|A|} b_k\right) - \pi$}\;
+            }
+            \Else{
+              {$S_i \xgets{-} S_j - \pi$}\;
+            }
+          }
+          \ForEach{$v\in\{v\mid\lpf{v} = p_{\pi}, v < n/\textcolor{pro}{\floor{\sqrt[3]{n}\cdot\log(n)^{1/3}}}\}\setminus{\mathbb{P}}$}{
+            {$j = (\text{\textbf{if }}v\le\sqrt{n}\text{\textbf{ then }}|A|-v\text{\textbf{ else }}\floor{n/v})$}\;
+            \lIf{$j>j_{\theta}$}{$b_{j} \xgets{+} 1$}
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        \ForEach{$j\gets(|A|, \dots, \floor{\sqrt[3]{n}\textcolor{pro}{\,\cdot\log(n)^{1/3}}})$}{
+          {$S_j \xgets{-} \displaystyle\sum_{k=j}^{|A|} b_k$}\;
+        }
+        \While{$p_{\pi} \le \sqrt{n}$}{
+          \ForEach{$i \gets (1, 2, \dots, |A|)$}{
+            \lIf{$A_i < p_{\pi}^2$}\Break
+            {$j = (\text{\textbf{if }}i\cdot p_{\pi}\le \sqrt{n}\text{\textbf{ then }}i\cdot p_{\pi}\text{\textbf{ else }}|A| - \floor{A_i/p_{\pi}})$}\;
+            {$S_i \xgets{-} S_j$}\;
+          }
+          {$\pi \xgets{+} 1$}\;
+        }
+        \Return $S_1$\Comment*{$\pi(n)$}
+      }
+    \end{alg}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{擬似コード \theslidetopic}
+
+  $\Theta(n^{2/3})$時間で乗法的関数の和を求める擬似コード。
+
+  拡大して見ればよいので、めちゃくちゃに縮小してある。
+
+  \centering
+  \scalebox{.17}{
+    \begin{alg}
+      \caption{高速化した乗法的関数の和}
+      \Function(\fn{multiplicativeFunctionSum\textsuperscript{2/3}}{$(n, f, S_{\mathbb{P}}^f)$})
+      {
+        \Assume{$f$は乗法的関数である}
+        \Assume{$S_{\mathbb{P}}^f(v) = \sum_{i=1}^{\pi(v)} f(p_i)$}
+        \Assume{素数$p$と正整数$e$に対して$f(p^e)$が計算できる\footnote{与えられた$p^e$の値から$p$や$e$を高速に復元するのは難しいため、実際には$(p, e, p^e)$などの組の形で管理するのがよい場合もありそう。}}
+        \Assume{正整数$v\le\sqrt{n}$に対して$S_{\mathbb{P}}^f(v)$が計算できる}
+        \Assume{正整数$v\le\sqrt{n}$に対して$S_{\mathbb{P}}^f(\floor{n/v})$が計算できる}
+
+        {$A = (n, \floor{n/2}, \dots, \floor{n/\floor{\sqrt{n}}}, \floor{n/\floor{\sqrt{n}}}-1, \dots, 2, 1)$}\;
+        {$h \gets (0)_{i=1}^{|A|}$}\;
+        {$q = p_{\pi(n^{1/3})+1}$}\;
+        \ForEach{$i \gets (1, 2, \dots, |A|)$}{
+          {$m \gets A_i$}\;
+          {$h_i \xgets{+} 1$}\;
+          \lIf{$m\le n^{1/3}$}\Continue
+
+          {$h_i \xgets{+} S_{\mathbb{P}}^f(m) - S_{\mathbb{P}}^f(q-1)$}\;
+          \lIf{$m\le n^{2/3}$}\Continue
+
+          \ForEach{$j \gets (\pi(q), \pi(q)+1, \dots)$}{
+            \lIf{$p_j > \floor{m / p_j}$}\Break
+            {$h_i \xgets{+} f(p_j^2) + f(p_j)\cdot(S_{\mathbb{P}}^f(\floor{m/p_j}) - S_{\mathbb{P}}^f(p_j))$}\;
+          }
+        }
+
+        {$b \gets (0)_{i=\floor{\sqrt[3]{n}}}^{|A|}$}\;
+        {$\pi \gets \pi(n^{1/3})+1$}\;
+        \While{$p_{\pi-1} > n^{1/6}$}{
+          {$\pi \xgets{-} 1$}\;
+          \ForEach{$i \gets (1, \dots, \floor{\sqrt[3]{n}})$}{
+            {$m \gets A_i$}\;
+            \lIf{$m < p_{\pi}$}\Break
+            \ForEach{$e \gets (1, 2, \dots)$}{
+              {$d = \floor{m / p_{\pi}^e}$}\;
+              {$j = (\text{\textbf{if }}d\le\sqrt{n}\text{\textbf{ then }}|A|-d\text{\textbf{ else }}\floor{n/d})$}\;
+              \If{$h > \sqrt[3]{n}$}{
+                {$h_i \xgets{+} f(p_{\pi}^e)\cdot\left(h_j+\displaystyle\sum_{k=j}^{|A|} b_k\right)$}\;
+              }\Else{
+                {$h_i \xgets{+} f(p_{\pi}^e)\cdot h_j$}\;
+              }
+              \lIf{$m < p_{\pi}^{e+1}$}\Break
+            }
+            {$s \gets ((p, \pi, 1, p^1))$}\Comment*{$s$はstackで管理する。}
+            \While{$(v, i, \phi, p^e) \gets s.\text{\textsc{pop}}()$}{
+              {$j = (\text{\textbf{if }}v\le\sqrt{n}\text{\textbf{ then }}|A|-v\text{\textbf{ else }}\floor{n/v})$}\;
+              \lIf{$j > \sqrt[3]{n}$}{$b_j \xgets{+} \phi\cdot f(p_i^e)$}
+              \If{$v\cdot p_i<\floor{n/\floor{\sqrt[3]{n}}}$}{
+                {$s.\text{\textsc{push}}((v\cdot p_i, i, \phi, p_i^{e+1}))$}\;
+              }
+              \For{$j \gets (i+1, \dots)$}{
+                \lIf{$v\cdot p_j \ge \floor{n/\floor{\sqrt[3]{n}}}$}\Break
+                {$s.\text{\textsc{push}}((v\cdot p_j, j, \phi\cdot f(p^e), p_j^1))$}\;
+              }
+            }
+          }
+        }
+
+        \ForEach{$j\in(|A|, \dots, \floor{\sqrt[3]{n}})$}{
+          {$h_j \xgets{+} \displaystyle\sum_{k=j}^{|A|} b_k$}\;
+        }
+
+        \While{$p_{\pi-1} \ge 2$}{
+          {$\pi \xgets{-} 1$}\;
+          \ForEach{$i \in (1, 2, \dots)$}{
+            {$m \gets A_i$}\;
+            \lIf{$m < p$}\Break
+            \ForEach{$e \gets (1, 2, \dots)$}{
+              {$d = \floor{m/p_{\pi}}$}\;
+              {$j = (\text{\textbf{if }}d\le\sqrt{n}\text{\textbf{ then }}|A|-d\text{\textbf{ else }}\floor{n/d})$}\;
+              {$h_i \xgets{+} f(p^e)\cdot h_j$}\;
+              \lIf{$m < p^{e+1}$}\Break
+            }
+          }
+        }
+        \Return $h_1$\Comment*{$\sum_{i=1}^n f(i)$}
+      }
+    \end{alg}
+  }
+\end{frame}
+
+\begin{frame}\label{frame:lucy-2/3-alg}
+  \frametitle{高速化Lucy DPの動き}
+
+  Lucy DPを$\Theta(n^{2/3})$時間に高速化したアルゴリズムの動作。
+
+  $n = 400$の場合を例として載せる。
+
+  実際に実装する際は、$\sqrt[3]{n}$の切り捨ての扱いなどから、必ずしも同じ動作になるとは限らないかも。
+\end{frame}
+
+\begin{frame}
+  \frametitle{$n^{1/6}$以下の素数でLucy DP}
+
+  \begin{figure}
+    \begin{tikzpicture}
+
+      \only<1-36> {
+        \directlua{tikz_log_sieve(400, 2, 2)}
+
+        \only<1> { \directlua{tikz_lucy(400, 2, 1, 1)} }
+        \only<2> { \directlua{tikz_lucy(400, 2, 1, 2)} }
+        \only<3> { \directlua{tikz_lucy(400, 2, 1, 3)} }
+        \only<4> { \directlua{tikz_lucy(400, 2, 1, 4)} }
+        \only<5> { \directlua{tikz_lucy(400, 2, 1, 5)} }
+        \only<6> { \directlua{tikz_lucy(400, 2, 1, 6)} }
+        \only<7> { \directlua{tikz_lucy(400, 2, 1, 7)} }
+        \only<8> { \directlua{tikz_lucy(400, 2, 1, 8)} }
+        \only<9> { \directlua{tikz_lucy(400, 2, 1, 9)} }
+        \only<10> { \directlua{tikz_lucy(400, 2, 1, 10)} }
+        \only<11> { \directlua{tikz_lucy(400, 2, 1, 11)} }
+        \only<12> { \directlua{tikz_lucy(400, 2, 1, 12)} }
+        \only<13> { \directlua{tikz_lucy(400, 2, 1, 13)} }
+        \only<14> { \directlua{tikz_lucy(400, 2, 1, 14)} }
+        \only<15> { \directlua{tikz_lucy(400, 2, 1, 15)} }
+        \only<16> { \directlua{tikz_lucy(400, 2, 1, 16)} }
+        \only<17> { \directlua{tikz_lucy(400, 2, 1, 17)} }
+        \only<18> { \directlua{tikz_lucy(400, 2, 1, 18)} }
+        \only<19> { \directlua{tikz_lucy(400, 2, 1, 19)} }
+        \only<20> { \directlua{tikz_lucy(400, 2, 1, 20)} }
+        \only<21> { \directlua{tikz_lucy(400, 2, 1, 21)} }
+        \only<22> { \directlua{tikz_lucy(400, 2, 1, 22)} }
+        \only<23> { \directlua{tikz_lucy(400, 2, 1, 23)} }
+        \only<24> { \directlua{tikz_lucy(400, 2, 1, 24)} }
+        \only<25> { \directlua{tikz_lucy(400, 2, 1, 25)} }
+        \only<26> { \directlua{tikz_lucy(400, 2, 1, 26)} }
+        \only<27> { \directlua{tikz_lucy(400, 2, 1, 27)} }
+        \only<28> { \directlua{tikz_lucy(400, 2, 1, 28)} }
+        \only<29> { \directlua{tikz_lucy(400, 2, 1, 29)} }
+        \only<30> { \directlua{tikz_lucy(400, 2, 1, 30)} }
+        \only<31> { \directlua{tikz_lucy(400, 2, 1, 31)} }
+        \only<32> { \directlua{tikz_lucy(400, 2, 1, 32)} }
+        \only<33> { \directlua{tikz_lucy(400, 2, 1, 33)} }
+        \only<34> { \directlua{tikz_lucy(400, 2, 1, 34)} }
+        \only<35> { \directlua{tikz_lucy(400, 2, 1, 35)} }
+        \only<36> { \directlua{tikz_lucy(400, 2, 1, 36)} }
+      }
+    \end{tikzpicture}
+    \caption{アルゴリズムの動き}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{$n^{1/3}$未満の素数でLucy DP + 合成数列挙}
+
+  \begin{figure}
+    \begin{tikzpicture}
+      \only<1-7> {
+        \directlua{tikz_log_sieve(400, 2, 3)}
+
+        \only<1> { \directlua{tikz_lucy(400, 2, 2, 1)} }
+        \only<2> { \directlua{tikz_lucy(400, 2, 2, 2)} }
+        \only<3> { \directlua{tikz_lucy(400, 2, 2, 3)} }
+        \only<4> { \directlua{tikz_lucy(400, 2, 2, 4)} }
+        \only<5> { \directlua{tikz_lucy(400, 2, 2, 5)} }
+        \only<6> { \directlua{tikz_lucy(400, 2, 2, 6)} }
+        \only<7> { \directlua{tikz_lucy(400, 2, 2, 7)} }
+      }
+
+      \only<8-14> {
+        \directlua{tikz_log_sieve(400, 2, 5)}
+
+        \only<8> { \directlua{tikz_lucy(400, 2, 3, 1)} }
+        \only<9> { \directlua{tikz_lucy(400, 2, 3, 2)} }
+        \only<10> { \directlua{tikz_lucy(400, 2, 3, 3)} }
+        \only<11> { \directlua{tikz_lucy(400, 2, 3, 4)} }
+        \only<12> { \directlua{tikz_lucy(400, 2, 3, 5)} }
+        \only<13> { \directlua{tikz_lucy(400, 2, 3, 6)} }
+        \only<14> { \directlua{tikz_lucy(400, 2, 3, 7)} }
+      }
+
+      \only<15-21> {
+        \directlua{tikz_log_sieve(400, 2, 7)}
+
+        \only<15> { \directlua{tikz_lucy(400, 2, 4, 1)} }
+        \only<16> { \directlua{tikz_lucy(400, 2, 4, 2)} }
+        \only<17> { \directlua{tikz_lucy(400, 2, 4, 3)} }
+        \only<18> { \directlua{tikz_lucy(400, 2, 4, 4)} }
+        \only<19> { \directlua{tikz_lucy(400, 2, 4, 5)} }
+        \only<20> { \directlua{tikz_lucy(400, 2, 4, 6)} }
+        \only<21> { \directlua{tikz_lucy(400, 2, 4, 7)} }
+      }
+    \end{tikzpicture}
+    \caption{アルゴリズムの動き}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{列挙した合成数をDP配列に反映}
+
+  \begin{figure}
+    \begin{tikzpicture}
+      \only<1-25> {
+        \directlua{tikz_log_sieve(400, 2, 7)}
+
+        \only<1> { \directlua{tikz_lucy_fix(400, 2, 8)} }
+        \only<2> { \directlua{tikz_lucy_fix(400, 2, 9)} }
+        \only<3> { \directlua{tikz_lucy_fix(400, 2, 10)} }
+        \only<4> { \directlua{tikz_lucy_fix(400, 2, 11)} }
+        \only<5> { \directlua{tikz_lucy_fix(400, 2, 12)} }
+        \only<6> { \directlua{tikz_lucy_fix(400, 2, 13)} }
+        \only<7> { \directlua{tikz_lucy_fix(400, 2, 14)} }
+        \only<8> { \directlua{tikz_lucy_fix(400, 2, 15)} }
+        \only<9> { \directlua{tikz_lucy_fix(400, 2, 16)} }
+        \only<10> { \directlua{tikz_lucy_fix(400, 2, 17)} }
+        \only<11> { \directlua{tikz_lucy_fix(400, 2, 18)} }
+        \only<12> { \directlua{tikz_lucy_fix(400, 2, 19)} }
+        \only<13> { \directlua{tikz_lucy_fix(400, 2, 20)} }
+        \only<14> { \directlua{tikz_lucy_fix(400, 2, 21)} }
+        \only<15> { \directlua{tikz_lucy_fix(400, 2, 22)} }
+        \only<16> { \directlua{tikz_lucy_fix(400, 2, 23)} }
+        \only<17> { \directlua{tikz_lucy_fix(400, 2, 24)} }
+        \only<18> { \directlua{tikz_lucy_fix(400, 2, 25)} }
+        \only<19> { \directlua{tikz_lucy_fix(400, 2, 26)} }
+        \only<20> { \directlua{tikz_lucy_fix(400, 2, 27)} }
+        \only<21> { \directlua{tikz_lucy_fix(400, 2, 28)} }
+        \only<22> { \directlua{tikz_lucy_fix(400, 2, 29)} }
+        \only<23> { \directlua{tikz_lucy_fix(400, 2, 30)} }
+        \only<24> { \directlua{tikz_lucy_fix(400, 2, 31)} }
+        \only<25> { \directlua{tikz_lucy_fix(400, 2, 32)} }
+      }
+    \end{tikzpicture}
+    \caption{アルゴリズムの動き}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{$n^{1/2}$以下の素数でLucy DP}
+
+  \begin{figure}
+    \begin{tikzpicture}
+      \only<1-3> {
+        \directlua{tikz_log_sieve(400, 2, 11)}
+
+        \only<1> { \directlua{tikz_lucy(400, 2, 5, 1)} }
+        \only<2> { \directlua{tikz_lucy(400, 2, 5, 2)} }
+        \only<3> { \directlua{tikz_lucy(400, 2, 5, 3)} }
+      }
+
+      \only<4-5> {
+        \directlua{tikz_log_sieve(400, 2, 13)}
+
+        \only<4> { \directlua{tikz_lucy(400, 2, 6, 1)} }
+        \only<5> { \directlua{tikz_lucy(400, 2, 6, 2)} }
+      }
+
+      \only<6> {
+        \directlua{tikz_log_sieve(400, 2, 17)}
+
+        \only<6> { \directlua{tikz_lucy(400, 2, 7, 1)} }
+      }
+
+      \only<7> {
+        \directlua{tikz_log_sieve(400, 2, 19)}
+
+        \only<7> { \directlua{tikz_lucy(400, 2, 8, 1)} }
+      }
+    \end{tikzpicture}
+    \caption{アルゴリズムの動き}
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{おわり}
+
+  $p_{\pi(\sqrt{400})} = 19$であり、$S_{19}(400) = \pi(400) = 78$が求められた。
+\end{frame}
+
+\begin{frame}
+  \frametitle{おまけ}
+
+  約数の総和を求める関数$\sigma_1$について、
+  $$ \sigma_1{\left(\prod_{p:\text{ prime}} p^{e_p}\right)} = \prod_{p:\text{ prime}}\frac{p^{e_p+1}-1}{p-1} $$
+  が成り立つ。特に、$\sigma_1(p) = p+1$である。
+  よって、今回の手法で各整数の``約数の和''の総和は$\Theta(n^{2/3})$時間で得られる\footnote{ハンマーを持つとすべてが釘に見えるが、これは$O(\sqrt{n})$時間で解ける。\spoiler{\hspace{2em}各約数$j$の寄与を考える。$n$以下の正整数のうち、$j$の倍数は$\floor{n/j}$個あり、\\答えへの寄与は$\floor{n/j}\cdot j$となる。
+  そのため、$\sum_{j=1}^n \floor{n/j}\cdot j$を求めればよいが、これはharmonic floor sum (fraction floor sum, ABC 230 E)と同じ方針で解ける。}\\}。
+\end{frame}
+
+\end{document}

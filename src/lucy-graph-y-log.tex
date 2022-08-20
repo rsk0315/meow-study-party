@@ -1,0 +1,136 @@
+\documentclass[lualatex, ja=standard]{standalone}
+
+\usepackage{luacode}
+
+\usepackage{meow}
+
+\usetikzlibrary{plotmarks}
+
+\definecolor{ThomasRed}{RGB}{128,32,64}
+\definecolor{ThomasBlue}{RGB}{52,52,178}
+\colorlet{pro}{ThomasBlue!65!white}
+\colorlet{con}{ThomasRed!65!white}
+
+\newcommand{\xgets}[1]{\xleftarrow{#1}}
+\newcommand{\DP}{\mathrm{dp}}
+\newcommand{\lpf}[1]{\mathrm{lpf}(#1)}
+
+\pgfkeys{
+  /pgf/data visualization/style sheets/graph/.cd,
+  1/.style={ThomasBlue},
+  2/.style={ThomasRed},
+  default style/.style={black}
+}
+\usetikzlibrary{datavisualization.formats.functions}
+
+% https://tex.stackexchange.com/questions/281561/tikz-and-exponential-style-tick-label
+\def\mytypesetter#1{%
+  \newcommand{\F}{0}%
+  \newcommand{\M}{1}%
+  \newcommand{\E}{0}%
+  \pgfmathfloatparsenumber{#1}%
+  \pgfmathfloattomacro{\pgfmathresult}{\F}{\M}{\E}%
+  \pgfutilensuremath{10^{\E}}%
+}
+
+\begin{document}
+
+\begin{tikzpicture}
+  % https://qiita.com/t_kemmochi/items/1aeafd5ec3f5f7edc4f2
+  \datavisualization [
+    scientific axes = clean,
+    visualize as scatter/.list = {2/3, 3/4/log, 2/3/log},
+    visualize as line/.list = {2/3, 3/4/log, 2/3/log},
+    style sheet = cross marks,
+    about strategy=1.5/10,
+%%     about=6,
+    3/4/log = {
+      style={,
+        mark options={con},
+        con, thin, dashed,
+      },
+      label in legend={text=$\Theta(n^{3/4}/\log(n))$-time},
+    },
+    2/3 = {
+      style={
+        mark options={pro},
+        pro, thin, dashed,
+      },
+      label in legend={text=$\Theta(n^{2/3})$-time},
+    },
+    2/3/log = {
+      style={
+        mark options={ThomasBlue},
+        ThomasBlue, thin, dashed,
+      },
+      label in legend={text=$\Theta(n^{2/3}/\log(n)^{1/3})$-time},
+    },
+    x axis = {
+      logarithmic,
+      % https://tex.stackexchange.com/questions/281561/tikz-and-exponential-style-tick-label
+      ticks and grid = {
+        step = 3,
+        tick typesetter/.code=\mytypesetter{##1}
+      },
+      ticks = {
+        minor steps between steps = 9,
+      },
+      label = {$n$},
+    },
+    y axis = {
+      logarithmic,
+      ticks = {
+        minor steps between steps = 9,
+        tick typesetter/.code=\mytypesetter{##1}
+      },
+      max value = 15,
+      label = {time (s)},
+    }
+  ]
+  data [format=named] {
+    x=1e1, y=453.32e-9, set=2/3/log
+    x=1e1, y=501.93e-9, set=2/3
+    x=1e1, y=416.43e-9, set=3/4/log
+    x=1e2, y=605.37e-9, set=2/3/log
+    x=1e2, y=752.75e-9, set=2/3
+    x=1e2, y=498.95e-9, set=3/4/log
+    x=1e3, y=1.0679e-6, set=2/3/log
+    x=1e3, y=1.4424e-6, set=2/3
+    x=1e3, y=954.23e-9, set=3/4/log
+    x=1e4, y=2.6127e-6, set=2/3/log
+    x=1e4, y=3.6771e-6, set=2/3
+    x=1e4, y=2.1086e-6, set=3/4/log
+    x=1e5, y=9.1287e-6, set=2/3/log
+    x=1e5, y=11.338e-6, set=2/3
+    x=1e5, y=7.3159e-6, set=3/4/log
+    x=1e6, y=34.899e-6, set=2/3/log
+    x=1e6, y=42.300e-6, set=2/3
+    x=1e6, y=30.088e-6, set=3/4/log
+    x=1e7, y=149.02e-6, set=2/3/log
+    x=1e7, y=237.41e-6, set=2/3
+    x=1e7, y=139.09e-6, set=3/4/log
+    x=1e8, y=794.57e-6, set=2/3/log
+    x=1e8, y=1.0882e-3, set=2/3
+    x=1e8, y=730.49e-6, set=3/4/log
+    x=1e9, y=3.4810e-3, set=2/3/log
+    x=1e9, y=4.5654e-3, set=2/3
+    x=1e9, y=3.3251e-3, set=3/4/log
+    x=1e10, y=15.828e-3, set=2/3/log
+    x=1e10, y=20.309e-3, set=2/3
+    x=1e10, y=16.872e-3, set=3/4/log
+    x=1e11, y=74.095e-3, set=2/3/log
+    x=1e11, y=88.630e-3, set=2/3
+    x=1e11, y=89.925e-3, set=3/4/log
+    x=1e12, y=347.16e-3, set=2/3/log
+    x=1e12, y=407.91e-3, set=2/3
+    x=1e12, y=479.81e-3, set=3/4/log
+    x=1e13, y=1.6385, set=2/3/log
+    x=1e13, y=1.9776, set=2/3
+    x=1e13, y=2.5300, set=3/4/log
+    x=1e14, y=7.4362, set=2/3/log
+    x=1e14, y=9.3902, set=2/3
+    x=1e14, y=13.217, set=3/4/log
+  };
+\end{tikzpicture}
+
+\end{document}

@@ -1,0 +1,116 @@
+\documentclass[lualatex, ja=standard]{standalone}
+
+\usepackage{luacode}
+
+\usepackage{meow}
+
+\usetikzlibrary{plotmarks}
+
+\definecolor{ThomasRed}{RGB}{128,32,64}
+\definecolor{ThomasBlue}{RGB}{52,52,178}
+\colorlet{pro}{ThomasBlue!65!white}
+\colorlet{con}{ThomasRed!65!white}
+
+\newcommand{\xgets}[1]{\xleftarrow{#1}}
+\newcommand{\DP}{\mathrm{dp}}
+\newcommand{\lpf}[1]{\mathrm{lpf}(#1)}
+
+\pgfkeys{
+  /pgf/data visualization/style sheets/graph/.cd,
+  1/.style={ThomasBlue},
+  2/.style={ThomasRed},
+  default style/.style={black}
+}
+\usetikzlibrary{datavisualization.formats.functions}
+% https://tex.stackexchange.com/questions/281561/tikz-and-exponential-style-tick-label
+\def\mytypesetter#1{%
+  \newcommand{\F}{0}%
+  \newcommand{\M}{1}%
+  \newcommand{\E}{0}%
+  \pgfmathfloatparsenumber{#1}%
+  \pgfmathfloattomacro{\pgfmathresult}{\F}{\M}{\E}%
+  \pgfutilensuremath{10^{\E}}%
+}
+
+\begin{document}
+
+\begin{tikzpicture}
+  % https://qiita.com/t_kemmochi/items/1aeafd5ec3f5f7edc4f2
+  \datavisualization [
+    scientific axes = clean,
+    visualize as scatter/.list = {black, min25},
+    visualize as line/.list = {black, min25},
+    style sheet = cross marks,
+    about strategy=1.5/10,
+    %% about=6,
+    black = {
+      style={,
+        mark options={con},
+        con, thin, dashed,
+      },
+      label in legend={text=$\Theta(n^{3/4}/\log(n))$?-time},
+    },
+    min25 = {
+      style={,
+        mark options={pro},
+        pro, thin, dashed,
+      },
+      label in legend={text=$\Theta(n^{2/3})$-time},
+    },
+    x axis = {
+      logarithmic,
+      % https://tex.stackexchange.com/questions/281561/tikz-and-exponential-style-tick-label
+      ticks and grid = {
+        step = 3,
+        tick typesetter/.code=\mytypesetter{##1}
+      },
+      ticks = {
+        minor steps between steps = 9,
+      },
+      label = {$n$},
+    },
+    y axis = {
+      logarithmic,
+      ticks = {
+        minor steps between steps = 9,
+        tick typesetter/.code=\mytypesetter{##1}
+      },
+      label = {time (s)},
+      max value = 100,
+      label = {time (s)},
+    }
+  ]
+  data [format=named] {
+    x=1e1, y=455.81e-9, set=min25
+    x=1e2, y=793.14e-9, set=min25
+    x=1e3, y=2.4207e-6, set=min25
+    x=1e4, y=9.4495e-6, set=min25
+    x=1e5, y=39.810e-6, set=min25
+    x=1e6, y=189.04e-6, set=min25
+    x=1e7, y=860.36e-6, set=min25
+    x=1e8, y=3.6755e-3, set=min25
+    x=1e9, y=15.282e-3, set=min25
+    x=1e10, y=65.928e-3, set=min25
+    x=1e11, y=289.12e-3, set=min25
+    x=1e12, y=1.2963, set=min25
+    x=1e13, y=6.1281, set=min25
+    x=1e14, y=27.110, set=min25
+
+    x=1e1, y=26.461e-9, set=black
+    x=1e2, y=190.95e-9, set=black
+    x=1e3, y=961.23e-9, set=black
+    x=1e4, y=5.0659e-6, set=black
+    x=1e5, y=25.532e-6, set=black
+    x=1e6, y=123.54e-6, set=black
+    x=1e7, y=598.86e-6, set=black
+    x=1e8, y=2.9926e-3, set=black
+    x=1e9, y=15.561e-3, set=black
+    x=1e10, y=88.650e-3, set=black
+    x=1e11, y=498.08e-3, set=black
+    x=1e12, y=2.8150, set=black
+    x=1e13, y=16.681, set=black
+    x=1e14, y=99.172, set=black
+  };
+\end{tikzpicture}
+
+\end{document}
