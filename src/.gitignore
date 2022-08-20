@@ -11,3 +11,7 @@ TheSansMonoCd-W7Bold.otf
 TheSansMonoCd-W7BoldItalic.otf
 TsukushiAMaruGothic.ttc
 NotoColorEmoji.ttf
+
+# PDF はとりあえず入れないことにしてみる
+*.pdf
+!sample.pdf
