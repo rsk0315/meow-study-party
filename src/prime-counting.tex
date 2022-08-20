@@ -37,7 +37,7 @@
 \usepackage{meowbeamer}
 
 \begin{luacode*}  
-  require("latest-commit")
+  require("lua/latest-commit")
 
   get_latest_commit = latest_commit.get_latest_commit
   commit_hash_and_date = latest_commit.commit_hash_and_date
@@ -46,10 +46,10 @@
 \title{素数の数え上げと乗法的関数の和}
 \author[えびちゃん]{えびちゃん(\hspace{.05em}\textcolor{useryellow}{\lato{\textbf{rsk0315}}}\hspace{.05em})}
 \date{Jun.~29, 2022 @ねこねこ勉強ぱーてぃ\\*[.5em]
-  {\footnotesize 更新：}\directlua{commit_hash_and_date("\\jobname.tex")}}
+  {\footnotesize 更新：}\directlua{commit_hash_and_date("\jobname.tex")}}
 
-\begin{luacode*}  
-  require("prime-counting")
+\begin{luacode*}
+  require("lua/prime-counting")
 
   tikz_sieve = prime_counting.tikz_sieve
   tikz_log_sieve = prime_counting.tikz_log_sieve
