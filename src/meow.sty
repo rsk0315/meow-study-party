@@ -1,0 +1,95 @@
+%%!lualatex
+
+\usepackage{mathpazo}
+\usepackage[euler-digits]{eulervm}
+\SetSymbolFont{operators}{normal}{T1}{ccr}{m}{n}
+\usepackage{euscript}
+\usepackage{bm}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{luatexja-ruby}
+\usepackage{tikz}
+\usetikzlibrary{
+  calc,
+  datavisualization,
+  graphs,
+  graphdrawing,
+}
+\usegdlibrary{trees}
+
+\usepackage{luacode}
+
+\usepackage{minted}
+\usemintedstyle{bw}
+
+\newcommand{\floor}[1]{\lfloor#1\rfloor}
+\newcommand{\ceil}[1]{\lceil#1\rceil}
+\newcommand{\angled}[1]{\langle#1\rangle}
+\newcommand{\halfco}[2]{[#1, #2)}
+\newcommand{\halfoc}[2]{(#1, #2]}
+
+\newcommand{\Floor}[1]{\left\lfloor#1\right\rfloor}
+\newcommand{\Ceil}[1]{\left\lceil#1\right\rceil}
+\newcommand{\Angled}[1]{\left\langle#1\right\rangle}
+\newcommand{\Halfco}[2]{\left[#1, #2\right)}
+\newcommand{\Halfoc}[2]{\left(#1, #2\right]}
+
+\newcommand{\qed}{\square}
+\newcommand{\dd}[1]{\mathrm{d}#1}
+
+\usepackage{luatexja-fontspec}
+
+% https://www.overleaf.com/learn/latex/Articles/An_Introduction_to_LuaTeX_(Part_2)%3A_Understanding_%5Cdirectlua#Using_the_tilde_character_.28.7E.29
+\begingroup
+\catcode`\~=11
+\directlua {
+  fonts.handlers.otf.addfeature {
+    name = "monoalt",
+    type = "substitution",
+    data = {
+      ["0"] = "zero.lf.slashed",
+      ["1"] = "one.lf",
+      ["2"] = "two.lf",
+      ["3"] = "three.lf",
+      ["4"] = "four.lf",
+      ["5"] = "five.lf",
+      ["6"] = "six.lf",
+      ["7"] = "seven.lf",
+      ["8"] = "eight.lf",
+      ["9"] = "nine.lf",
+      ["g"] = "g.alt1",
+      ["y"] = "y.alt1",
+      ["G"] = "G.alt1",
+      ["Q"] = "Q.alt",
+      ["*"] = "asterisk.alt1",
+      ["~"] = "asciitilde.alt1",
+    }
+  }
+}
+\endgroup
+
+% フォントがない場合は以下をコメントアウトする
+\setmainfont[
+  Path = ./,
+  Extension = .ttf,
+  Ligatures = Rare,
+  BoldFont = Junicode-Bold,
+  ItalicFont = Junicode-Italic,
+  BoldItalicFont = Junicode-BoldItalic,
+]{Junicode}
+
+% フォントがない場合は以下をコメントアウトする
+\setmonofont[
+  Path = ./,
+  Extension = .otf,
+  UprightFont = TheSansMonoCd-W5Regular,
+  BoldFont = TheSansMonoCd-W7Bold,
+  ItalicFont = TheSansMonoCd-W5RegularItal,
+  BoldItalicFont = TheSansMonoCd-W7BoldItalic,
+]{TheSansMonoCd}[RawFeature=+monoalt]
+
+\usepackage{titlesec}
+\titleformat*{\section}{\Large\bfseries}
+\titleformat*{\subsection}{\large\bfseries}
+\titleformat*{\subsubsection}{\itshape}
