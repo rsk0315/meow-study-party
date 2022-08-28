@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 \documentclass[
   lualatex,
   ja=standard,
@@ -137,3 +138,198 @@
 \end{frame}
 
 \end{document}
+||||||| constructed merge base
+=======
+\documentclass[
+  lualatex,
+  ja=standard,
+  compress,
+  hyperref={colorlinks, urlcolor=magenta, linkcolor=blue!55!black},
+  dvipsnames,
+  svgnames,
+]{beamer}
+
+\newcommand{\xgets}[1]{\xleftarrow{#1}}
+\newcommand{\wildcard}{*}
+\newcommand{\DP}{\mathrm{dp}}
+\newcommand{\Ei}[1]{\operatorname{Ei}(#1)}
+\newcommand{\li}[1]{\operatorname{li}(#1)}
+\newcommand{\Li}[1]{\operatorname{Li}(#1)}
+\newcommand{\IntC}{\text{\textcolor{gray}{const}}}
+\newcommand{\lpf}[1]{\mathrm{lpf}(#1)}
+\newcommand{\gpf}[1]{\mathrm{gpf}(#1)}
+
+\newcommand{\placeholder}{\bullet}
+
+\usepackage{meowbeamer}
+
+\begin{luacode*}  
+  require("lua/latest-commit")
+
+  get_latest_commit = latest_commit.get_latest_commit
+  commit_hash_and_date = latest_commit.commit_hash_and_date
+\end{luacode*}
+
+\title{\textsc{Smawk} \& \textsc{Larsch} Algorithm}
+\author[えびちゃん]{えびちゃん(\hspace{.05em}\textcolor{useryellow}{\lato{\textbf{rsk0315}}}\hspace{.05em})}
+\date{Sep.~24, 2022 @ねこねこ勉強ぱーてぃ\\*[.5em]
+  {\footnotesize 更新：}\directlua{commit_hash_and_date("\jobname.tex")}}
+
+\begin{document}
+
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\section{導入}
+\begin{frame}
+  \frametitle{目標}
+
+  \begin{itemize}
+  \item 用語を理解する
+    \begin{itemize}
+    \item Monge性
+    \item (concave|convex) QI
+    \item (concave|convex) totally monotone
+    \end{itemize}
+  \item 以下で定まる$\DP[1], \dots, \DP[n-1]$を$O(n)$時間で求める
+    \begin{itemize}
+    \item $\DP[i] = \min_{j\in\halfco{0}{i}} a_j + f(j, i)$
+      % dp[i + 1][j] = min dp[i][j'] + f(j', j)
+    \item $\DP[i] = \min_{j\in\halfco{0}{i}} \DP[j] + f(j, i)$
+      % dp[i + 1][j] = min dp[i + 1][j'] + f(j', j)
+      \begin{itemize}
+      \item 上記二つにおいて、$f$はQIを満たすとする。
+      \item $\DP[0]$は与えられるとする。
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{解ける問題の例 \theslidetopic}
+
+  \begin{block}{EDPC Z}
+    以下で定義される$\DP[n - 1]$を求めよ。ただし$a$は単調増加。
+    $$
+    \begin{aligned}
+    \DP[0] &= 0, \\
+    \DP[i] &= \min_{j\in\halfco{0}{i}} (a_i-a_j)^2+c. \\
+    \end{aligned}
+    $$
+  \end{block}
+  以下のように変形する：
+  $$
+  \DP[i] = \min_{j\in\halfco{0}{i}} \left\{a_j\cdot(-2a_i)+a_j^2\right\}+(a_i^2+c).
+  $$
+  直線$y = a_j\cdot x + a_j^2$たちの$x = -2a_i$での最小値に帰着できる。
+
+  これは、convex hull trickで$O(n)$時間で解ける。
+\end{frame}
+
+\begin{frame}
+  \frametitle{解ける問題の例 \theslidetopic}
+
+  \begin{block}{EDPC Z+}
+    以下で定義される$\DP[n - 1]$を求めよ。ただし$a$は単調増加。
+    $$
+    \begin{aligned}
+    \DP[0] &= 0, \\
+    \DP[i] &= \min_{j\in\halfco{0}{i}} (a_i-a_j)^3+c. \\
+    \end{aligned}
+    $$
+  \end{block}
+  以下のように変形する（？）：
+  $$
+  \DP[i] = \min_{j\in\halfco{0}{i}} \left\{a_j\cdot (-3a_i^2)+a_j^2\cdot 3a_i-a_j^3\right\}+(a_i^3+c).
+  $$
+  これは、convex hull trickでは難しそう。→ \textsc{Larsch}なら解ける。
+\end{frame}
+
+\section{用語}
+\begin{frame}
+  \frametitle{Monge性}
+
+  \ruby{Monge}{もんじゅ}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Quadrangle Inequality, Concavity and Convexity}
+
+  2変数関数$W(\placeholder, \placeholder)$が\emph{concave}であるとは次のことを言う：
+  $$
+  i<i'<j<j' \implies \underbrace{W(i, j) + W(i', j')}_{\circ} \le \underbrace{W(i, j') + W(i', j)}_{\star}.
+  $$
+
+  四角形状の点での値に関する不等式(quadrangle inequality)である。
+%%   $$
+%%   \left(\begin{matrix}
+%%     \circ & \star \\
+%%     \star & \circ
+%%   \end{matrix}\right)
+%%   $$
+  \begin{figure}
+    \begin{tikzpicture}
+      \datavisualization[
+        school book axes,
+        visualize as scatter/.list = {circ, star},
+        style sheet = cross marks,
+        circ = {
+          style = {
+            mark options = {black},
+            mark = o,
+          },
+        },
+        star = {
+          style = {
+            mark options = {black},
+            mark = star,
+          },
+        },
+%%         yscale = -1,
+        x axis = {
+          max value = 3,
+        },
+        y axis = {
+          max value = 2,
+        },
+      ]
+      data [format=named] {
+        x=1, y=2, set=circ
+        x=2, y=3, set=circ
+        x=1, y=3, set=star
+        x=2, y=2, set=star
+      };
+    \end{tikzpicture}
+    \caption{QI}
+    
+  \end{figure}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Monotonicity}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Totally Monotonicity}
+\end{frame}
+
+\section{\textsc{Smawk}}
+\begin{frame}
+  \frametitle{問題設定}
+\end{frame}
+
+\section{\textsc{Larsch}}
+\begin{frame}
+  \frametitle{問題設定}
+\end{frame}
+
+\section{おわり}
+\begin{frame}
+  \vspace{3em}
+
+  \Thankyou
+\end{frame}
+
+\end{document}
+>>>>>>> Stashed changes
